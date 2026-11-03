@@ -114,3 +114,7 @@ Change needed: unclear (owner leans: use current weight)
 ## 2. Rest between rounds (web research, inconclusive)
 Two web searches found no stated rest interval. Only general themes: recovery/rest is central to the program, the authors criticize nonstop endurance exercise, and exercises are done at a set tempo with breathing. Exact figure, if any, is in the book's exercise chapter or the DVD/official site.
 Change needed: unclear
+
+## 5. Flexibility standard (owner confirmation)
+Owner confirms from the book: there is NO combined flexibility score. Each of the five tests (Table, Jackknife, Bow, Corkscrew, Jerzy Squat) is a separate method of measuring flexibility with its own Poor–Excellent rating. Nothing about combining them. (Not stated here which grade passes the standard.)
+Change needed: yes (rate each test separately; no overall grade)

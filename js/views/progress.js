@@ -127,7 +127,7 @@ function standardsView(editing) {
   const fmtVal = (d, v) => v == null ? '—' : d.kind === 'pass' ? (v ? 'Met' : 'Not yet') : `${fmtLb(v)} ${d.unit}`;
   const cards = STANDARDS.map((d) => {
     const c = cur[d.id];
-    const status = c.met === true ? '<span class="pill green">met</span>' : c.met === false ? '<span class="pill">not yet</span>' : '<span class="pill blue">no target</span>';
+    const status = c.met === true ? '<span class="pill green">met</span>' : c.met === false ? '<span class="pill">not yet</span>' : c.value == null ? '<span class="pill blue">no entry</span>' : '<span class="pill blue">no target</span>';
     const isEditing = editing === d.id;
     let action = '';
     if (d.kind === 'pass') {
@@ -157,7 +157,7 @@ function standardsView(editing) {
     <section class="card">
       <div class="card-title"><h2>${metCount} of 6 Standards</h2><span class="hint">the goal of the whole program</span></div>
       <div class="badges">${STANDARDS.map(badge).join('')}</div>
-      <p class="small muted" style="margin:10px 0 0">The book defines each Standard with a specific test. The test text and targets here are editable: check them against your copy and adjust. Strength, Speed and Weight fill in automatically from your base weight, sessions and weigh-ins.</p>
+      <p class="small muted" style="margin:10px 0 0">Tests and targets follow chapter 2 of the book and are editable. Speed and weight fill in from your sessions and weigh-ins; Strength and Leanness targets come from your sex and weigh-ins unless you type one.</p>
     </section>
     ${weightCard(p)}
     ${cards}
