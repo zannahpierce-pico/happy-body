@@ -1,12 +1,14 @@
-// Settings: timer cues, appearance, backup/restore, storage health, about.
+// Settings: timer cues, appearance, account and sync, backup/restore, storage health, about.
 import { store } from '../store.js';
-import { esc, on, $, toast, sheet, confirmSheet, fmtClock } from '../ui.js';
+import { sync } from '../sync.js';
+import { esc, on, $, toast, sheet, confirmSheet, fmtClock, fmtDate } from '../ui.js';
 import * as audio from '../audio.js';
 
 export function render(main) {
   const draw = () => { main.innerHTML = view(); fillEstimate(main); };
   draw();
   const unsub = store.subscribe((what) => { if (what === 'settings' || what === 'import' || what === 'status' || what === 'photos') draw(); });
+  const unsubSync = sync.subscribe(draw);
 
   on(main, 'click', '[data-toggle]', async (ev, b) => {
     const path = b.dataset.toggle;
@@ -27,11 +29,16 @@ export function render(main) {
   on(main, 'click', '[data-export]', exportFlow);
   on(main, 'click', '[data-import]', importFlow);
   on(main, 'click', '[data-wipe]', async () => {
-    if (await confirmSheet({ title: 'Erase everything?', body: 'Settings, the whole log, history and photos on this device. Export a backup first if you want to keep anything. This cannot be undone.', okLabel: 'Erase all data', danger: true })) {
+    const account = sync.user ? ' You will also be signed out; your account keeps its copy.' : '';
+    if (await confirmSheet({ title: 'Erase everything?', body: `Settings, the whole log, history and photos on this device. Export a backup first if you want to keep anything. This cannot be undone.${account}`, okLabel: 'Erase all data', danger: true })) {
+      if (sync.user) await sync.signOut();
       await store.wipe(); toast('Erased'); applyTheme('auto');
     }
   });
-  return unsub;
+  on(main, 'click', '[data-signin]', signInFlow);
+  on(main, 'click', '[data-signout]', signOutFlow);
+  on(main, 'click', '[data-sync-now]', () => sync.syncNow());
+  return () => { unsub(); unsubSync(); };
 }
 
 const get = (o, p) => p.split('.').reduce((a, k) => a?.[k], o);
@@ -73,9 +80,11 @@ function view() {
       <div class="seg">${[['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button data-set="theme|${v}" class="${(s.theme || 'auto') === v ? 'on' : ''}">${l}</button>`).join('')}</div>
     </section>
 
+    ${accountCard()}
+
     <section class="card">
       <div class="card-title"><h2>Backup</h2><span class="hint"><span class="save-dot ${dotCls}"></span>${saved}</span></div>
-      <p class="small muted">Everything lives on this device: ${store.mode === 'idb' ? 'IndexedDB with a localStorage mirror' : 'localStorage only (IndexedDB is unavailable here)'}. Export a file now and then, and before reinstalling. Photos are included.</p>
+      <p class="small muted">Everything lives on this device: ${store.mode === 'idb' ? 'IndexedDB with a localStorage mirror' : 'localStorage only (IndexedDB is unavailable here)'}${sync.user ? ', with a copy in your account' : ''}. Export a file now and then, and before reinstalling. Photos are included.</p>
       <div class="btn-row">
         <button class="btn primary" data-export>Export backup</button>
         <button class="btn" data-import>Import</button>
@@ -90,9 +99,129 @@ function view() {
 
     <section class="card flat">
       <div class="card-title"><h3>About</h3></div>
-      <p class="small muted" style="margin:0">A personal runner for the exercise program in <i>The Happy Body</i> by Aniela and Jerzy Gregorek. Not affiliated with the authors. Exercise text is paraphrased from chapter 8; drawings are original. Install: in Safari, Share → Add to Home Screen. Photos you add stay on this device.</p>
+      <p class="small muted" style="margin:0">A personal runner for the exercise program in <i>The Happy Body</i> by Aniela and Jerzy Gregorek. Not affiliated with the authors. Exercise text is paraphrased from chapter 8; drawings are original. Install: in Safari, Share → Add to Home Screen. Photos you add stay on this device unless you sign in to sync them.</p>
     </section>
   </div>`;
+}
+
+const fmtWhen = (ts) => (new Date(ts).toDateString() === new Date().toDateString() ? `today ${fmtClock(ts)}` : `${fmtDate(ts)} ${fmtClock(ts)}`);
+const INPUT = 'style="width:100%;font:inherit;padding:8px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--text);min-height:40px"';
+
+function accountCard() {
+  if (!sync.configured) {
+    return `<section class="card">
+      <div class="card-title"><h2>Account</h2></div>
+      <p class="small muted" style="margin:0">Accounts and sync are not set up for this copy of the app, so everything stays on this device.</p>
+    </section>`;
+  }
+  const u = sync.user;
+  const err = sync.error && sync.state !== 'offline' ? `<p class="small" style="color:var(--red);margin:8px 0 0">${esc(sync.error)}</p>` : '';
+  if (!u) {
+    return `<section class="card">
+      <div class="card-title"><h2>Account</h2></div>
+      <p class="small muted">Sign in to keep your log, settings, progress and photos in step on your phone and computer. Each person signs in with their own email and sees only their own data. Without an account everything stays on this device and works offline as before.</p>
+      <button class="btn primary block" data-signin>Sign in</button>${err}
+    </section>`;
+  }
+  const st = sync.state;
+  const dot = st === 'error' ? 'err' : st === 'syncing' || st === 'offline' ? 'pending' : '';
+  const status = st === 'syncing' ? 'Syncing…' : st === 'offline' ? 'Offline' : st === 'error' ? 'Sync failed' : 'Synced';
+  const last = sync.lastSynced;
+  return `<section class="card">
+    <div class="card-title"><h2>Account</h2><span class="hint" data-sync-state><span class="save-dot ${dot}"></span>${status}</span></div>
+    <div class="row"><span class="label small">Signed in as</span><span>${esc(u.email)}</span></div>
+    <div class="row"><span class="label small">Last synced</span><span class="tnum" data-last-synced>${last ? fmtWhen(last) : 'not yet'}</span></div>
+    <div class="row"><span class="label small">Changes waiting to sync</span><span class="tnum" data-sync-pending>${store.syncPending}</span></div>
+    ${err}
+    <div class="btn-row" style="margin-top:10px"><button class="btn" data-sync-now ${st === 'syncing' ? 'disabled' : ''}>Sync now</button><button class="btn" data-signout>Sign out</button></div>
+  </section>`;
+}
+
+function signInFlow() {
+  const sh = sheet(`
+    <div class="sheet-head"><h2>Sign in</h2><button class="close" data-close aria-label="Close">×</button></div>
+    <form class="stack" data-auth novalidate>
+      <input type="email" name="email" autocomplete="username" placeholder="Email" aria-label="Email" ${INPUT}>
+      <input type="password" name="password" autocomplete="current-password" placeholder="Password" aria-label="Password" ${INPUT}>
+      <div class="btn-row"><button class="btn primary" data-act="signin">Sign in</button><button type="button" class="btn" data-act="signup">Create account</button></div>
+      <button type="button" class="btn sm block" data-act="code">Email me a sign-in code instead</button>
+      <div class="stack" data-code-step hidden>
+        <input name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="Code from the email" aria-label="Code from the email" ${INPUT}>
+        <button type="button" class="btn primary block" data-act="verify">Sign in with code</button>
+      </div>
+      <p class="small muted" data-msg style="margin:0"></p>
+    </form>`);
+  const form = $('[data-auth]', sh.el);
+  const msg = (t, error = false) => { const m = $('[data-msg]', sh.el); m.textContent = t; m.style.color = error ? 'var(--red)' : ''; };
+  const val = (n) => form.elements[n].value.trim();
+  let busy = false;
+  const run = async (fn) => {
+    if (busy) return;
+    busy = true;
+    try { await fn(); } catch (e) { msg(e.network ? 'You are offline. Try again when connected.' : e.message || 'Something went wrong', true); }
+    finally { busy = false; }
+  };
+  const done = async (user) => { sh.close(); await afterSignIn(user); };
+  const need = (password) => {
+    if (!/^\S+@\S+\.\S+$/.test(val('email'))) throw new Error('Enter your email address');
+    if (password && form.elements.password.value.length < 6) throw new Error('Passwords are at least 6 characters');
+  };
+  form.addEventListener('submit', (e) => { e.preventDefault(); run(async () => { need(true); msg('Signing in…'); await done(await sync.signIn(val('email'), form.elements.password.value)); }); });
+  on(form, 'click', '[data-act]', (e, b) => {
+    const act = b.dataset.act;
+    if (act === 'signin') return;
+    run(async () => {
+      if (act === 'signup') {
+        need(true); msg('Creating your account…');
+        const user = await sync.signUp(val('email'), form.elements.password.value);
+        if (user) await done(user); else msg('Check your email to confirm the account, then sign in here.');
+      } else if (act === 'code') {
+        need(false); msg('Sending…');
+        await sync.sendCode(val('email'));
+        $('[data-code-step]', sh.el).hidden = false;
+        form.elements.code.focus();
+        msg('We sent a code to your email. Enter it here; the link in the email works too, but only in Safari.');
+      } else if (act === 'verify') {
+        need(false);
+        if (!val('code')) throw new Error('Enter the code from the email');
+        msg('Signing in…');
+        await done(await sync.verifyCode(val('email'), val('code')));
+      }
+    });
+  });
+}
+
+// Data left by a different account on this device: erase it or add it to this account.
+async function afterSignIn(user) {
+  const last = store.syncMeta.lastUserId;
+  if (last && last !== user.id && store.hasData) {
+    const choice = await new Promise((resolve) => {
+      const sh = sheet(`
+        <div class="sheet-head"><h2>Data from another account</h2><button class="close" data-close aria-label="Close">×</button></div>
+        <p class="small">This device has a log or progress from a different account. Erase it from this device before loading yours, or add it to ${esc(user.email)}?</p>
+        <div class="btn-row"><button class="btn danger" data-choice="erase">Erase it</button><button class="btn" data-choice="merge">Add it</button></div>`,
+      { onClose: () => resolve(null) });
+      on(sh.el, 'click', '[data-choice]', (e, b) => { resolve(b.dataset.choice); sh.close(); });
+    });
+    if (!choice) { await sync.signOut(); toast('Signed out'); return; }
+    if (choice === 'erase') { await store.wipe(); applyTheme('auto'); }
+  }
+  toast(`Signed in as ${user.email}`);
+  await sync.attach();
+  applyTheme(store.settings.theme);
+}
+
+function signOutFlow() {
+  const sh = sheet(`
+    <div class="sheet-head"><h2>Sign out?</h2><button class="close" data-close aria-label="Close">×</button></div>
+    <p class="small">Your account keeps everything synced so far${store.syncPending ? `, but ${store.syncPending} change${store.syncPending === 1 ? ' has' : 's have'} not synced yet and will only be on this device` : ''}. You can keep a copy on this device or erase it.</p>
+    <div class="btn-row"><button class="btn" data-out="keep">Sign out</button><button class="btn danger" data-out="erase">Sign out and erase</button></div>`);
+  on(sh.el, 'click', '[data-out]', async (e, b) => {
+    sh.close();
+    await sync.signOut();
+    if (b.dataset.out === 'erase') { await store.wipe(); applyTheme('auto'); }
+    toast('Signed out');
+  });
 }
 
 async function exportFlow() {
