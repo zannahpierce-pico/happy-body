@@ -79,7 +79,7 @@ function view() {
       <p class="small muted" style="margin:10px 0 0">Every other weight is a percentage of this one (Table 8.2 / 8.3), rounded to the nearest half pound. Follow the percentages even when a weight feels light.</p>
       <div class="divider"></div>
       <div class="row">
-        <span class="label">Reps on lifts<span class="small muted">6 to gain or keep muscle · 3 to lose or maintain</span></span>
+        <span class="label">Reps on lifts<span class="small muted">6 to build or keep muscle, 3 to lose weight</span></span>
         <div class="seg compact" style="width:120px"><button data-reps="6" class="${s.reps === 6 ? 'on' : ''}">6</button><button data-reps="3" class="${s.reps === 3 ? 'on' : ''}">3</button></div>
       </div>
       <div class="row">
