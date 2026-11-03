@@ -123,8 +123,7 @@ supabase/setup.sql    one-time backend setup: table, photo bucket, row-level sec
 
 ## Open items from the brief
 
-- Rest between rounds: the book pages checked so far say nothing; none is built in beyond the get-ready countdown.
 - Which grade of the five flexibility tests counts as meeting the standard, and whether Strength is set from current or ideal body weight (the app uses current).
 - Table 2.1's row values were read from a skewed photo and fitted to the 3 lb and 5 lb per inch rule; worth a second look (`book-notes.md` has the findings).
 
-Checked against the book: the week structure (sequences in blocks, 6 then 4 then 3 rounds), the reps rule, the weight percentages in Tables 8.2 and 8.3, the soreness rule, the weight-increase rule, and the 30-minute Speed standard.
+Checked against the book: the week structure (sequences in blocks, 6 then 4 then 3 rounds), the reps rule, the weight percentages in Tables 8.2 and 8.3, the soreness rule, the weight-increase rule, the 30-minute Speed standard, and rest (chapter 5: rest is the exhale at the end of every rep, with no interval between rounds or sequences; every exercise here ends with a 2-second exhale, and the get-ready countdown is the app's own).

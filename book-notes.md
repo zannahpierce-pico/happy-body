@@ -118,3 +118,16 @@ Change needed: unclear
 ## 5. Flexibility standard (owner confirmation)
 Owner confirms from the book: there is NO combined flexibility score. Each of the five tests (Table, Jackknife, Bow, Corkscrew, Jerzy Squat) is a separate method of measuring flexibility with its own Poor–Excellent rating. Nothing about combining them. (Not stated here which grade passes the standard.)
 Change needed: yes (rate each test separately; no overall grade)
+
+## 2. Rest between rounds (book, p.69 Ch.5 "Recovery and Relaxation During Exercise")
+Book says: Rest is built into EVERY REPETITION, not between rounds. Each repetition has three parts: 1. inhale, 2. move while holding the breath, 3. exhale — the exhale is when you recover and relax (mental release, "micro-meditation"). The program "is a form of interval training... provides for rest between repetitions" (vs. endurance programs with continuous training). Each exhalation lets the brain restore hormones that stimulate muscle fibers. No rest interval between sets/rounds/sequences is prescribed on this page.
+Page: 69
+App currently: no rest beyond a get-ready countdown.
+Change needed: no (rest is the exhale phase at the end of each rep; confirm the app's tempos include a relaxed exhale). No between-round rest in the book as far as seen.
+
+## Extra: Quick Guide to the Happy Body Experience (week-by-week roadmap)
+Week 1 Day 1: 1 find ideal body weight (p.35); 2 pounds of fat / lean mass you should have (p.75/76); 3 measure current body fat %, estimate fat and lean mass (p.77); 4 find body type (p.80); 5 estimate time to reach ideal body weight proportions (p.81); 6 set up food plan (p.100); 7 use tables 7.3 & 7.4 to track food (p.110-11); 8 test flexibility levels (p.16-20); 9 learn first sequence of exercises (p.128).
+Week 2: guidelines p.133. Week 3: guidelines p.149; begin charting IBW, IMW, IFW changes with tables 8.6 and 8.7 (p.170-171). Weeks 4, 5, 6: guidelines p.165; begin charting progress on youthfulness measures with table 8.10 (p.173). Week 7+: guidelines p.166. After six weeks eating and exercising become intuitive.
+Page: Quick Guide
+App currently: n/a (not one of the numbered items)
+Change needed: unclear (useful for app's week/phase progression: week 1 Seq 1; week 2 adds Seq 2; week 3 adds Seq 3; recheck at weeks 4-6 and 7+). Other sessions' note: page 166 "week 7+" and p.165 "weeks 4-6" not photographed yet.
