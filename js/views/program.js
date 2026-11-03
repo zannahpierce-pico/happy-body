@@ -79,11 +79,11 @@ function view() {
       <p class="small muted" style="margin:10px 0 0">Every other weight is a percentage of this one (Table 8.2 / 8.3), rounded to the nearest half pound. Follow the percentages even when a weight feels light.</p>
       <div class="divider"></div>
       <div class="row">
-        <span class="label">Reps on lifts<span class="small muted">6 to gain or keep muscle · 3 to lose or maintain</span></span>
+        <span class="label">Reps on lifts<span class="small muted">6 to gain muscle, 3 to lose muscle or stay the same</span></span>
         <div class="seg compact" style="width:120px"><button data-reps="6" class="${s.reps === 6 ? 'on' : ''}">6</button><button data-reps="3" class="${s.reps === 3 ? 'on' : ''}">3</button></div>
       </div>
       <div class="row">
-        <span class="label">Weekly increment<span class="small muted">once a session takes 30 min</span></span>
+        <span class="label">Weight increase<span class="small muted">when a session takes 30 min and nothing is sore</span></span>
         <div class="seg compact" style="width:150px"><button data-sex="f" class="${s.sex !== 'm' ? 'on' : ''}">+1 lb</button><button data-sex="m" class="${s.sex === 'm' ? 'on' : ''}">+2 lb</button></div>
       </div>
       <div class="divider"></div>

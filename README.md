@@ -81,8 +81,9 @@ The free plan's built-in email sender is rate limited (a few emails an hour), wh
 
 - Week 1: Sequence 1 × 6 rounds. Week 2: Sequence 1 × 4 then Sequence 2 × 4. Week 3 onward: all three sequences × 3 rounds.
 - Weights: Seq 1 = 100 / 150 / 200 / 150 %, Seq 2 = 50 / 200 / 100 / 150 %, Seq 3 = 150 / 50 / 100 / 150 % of the base, for exercises 1 / 4 / 5 / 6.
-- Exercises 2 and 3 are always 6 reps. 2:4 splits reps between arms, 2:2 alternates sides; the timer announces the side.
-- Soreness: each sore exercise drops a level; at level 1 the base drops 1 lb instead.
+- Lifts (exercises 1, 4, 5, 6): 6 reps to gain muscle, 3 reps to lose muscle or stay the same. Exercises 2 and 3 are always 6 reps. 2:4 splits reps between arms, 2:2 alternates sides; the timer announces the side.
+- Soreness, judged after a week: each sore exercise drops a level; at level 1 the base drops 1 lb instead, repeatable until it stops.
+- Raising weight: once nothing is sore, the dumbbells feel comfortable and a session takes about 30 minutes, men add 2 lb and women 1 lb to the base, and keep doing so until all six Standards are met. Then maintain.
 - Streak day = every slot of the day's plan logged (skips count so the round still completes).
 
 ## Tests
@@ -122,7 +123,7 @@ supabase/setup.sql    one-time backend setup: table, photo bucket, row-level sec
 
 ## Open items from the brief
 
-- Whether week 2 is Seq 1 × 4 then Seq 2 × 4 (as built) or alternating rounds.
-- Rest between rounds, if the book specifies any: there is none built in beyond the get-ready countdown.
-- Later chapters' rules for raising weight beyond the week-7 increments.
-- The reps rule as the book states it. The Program tab says "6 to gain or keep muscle, 3 to lose or maintain", which reads as two overlapping cases; find the exact wording and what 3 reps is for.
+- Rest between rounds: the book pages checked so far say nothing; none is built in beyond the get-ready countdown.
+- The six Standards' test descriptions and targets other than Speed are still placeholders to check against the book (`book-notes.md` tracks what has been checked).
+
+Checked against the book: the week structure (sequences in blocks, 6 then 4 then 3 rounds), the reps rule, the weight percentages in Tables 8.2 and 8.3, the soreness rule, the weight-increase rule, and the 30-minute Speed standard.
