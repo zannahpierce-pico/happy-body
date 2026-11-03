@@ -1,12 +1,22 @@
-// Today: where you are, the tempo timer, and the exercise cards for the current sequence.
+// Today: round bar, the current exercise with its tempo, the ring timer, and the
+// day's sequences as collapsible ruled sections.
 import { store } from '../store.js';
 import { session } from '../session.js';
 import { byKey, sequence, key as keyOf } from '../data/exercises.js';
-import { phaseById, weightLabel, repsFor, repsLabel, repSide, planMinutes } from '../program.js';
+import { phaseById, weightLabel, repsFor, repsLabel, repSide } from '../program.js';
 import { heroImage } from '../figure.js';
 import { photoKey, photoURL } from '../photos.js';
 import { esc, on, $, $$, fmtTime, confirmSheet, toast, ICONS } from '../ui.js';
-import { openExercise, tempoChips } from './exercise.js';
+import { openExercise } from './exercise.js';
+
+const RING_R = 128;
+const RING_C = Math.round(2 * Math.PI * RING_R * 100) / 100;
+const CHEV = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+const CHEV_UP = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>';
+const CHEV_SM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+
+// Which sequence sections the person has opened or closed by hand this visit.
+const toggled = new Map();
 
 export function render(main) {
   let unsubs = [];
@@ -14,7 +24,12 @@ export function render(main) {
   draw();
   unsubs.push(session.subscribe((what, data) => { if (what === 'state') draw(); else if (what === 'tick') tick(main, data); }));
   on(main, 'click', '[data-act]', (ev, btn) => act(btn.dataset.act, btn));
-  on(main, 'click', '[data-ex]', (ev, card) => { if (ev.target.closest('[data-act]')) return; openExercise(byKey[card.dataset.ex]); });
+  on(main, 'click', '[data-ex]', (ev, el) => { if (ev.target.closest('[data-act]')) return; openExercise(byKey[el.dataset.ex]); });
+  on(main, 'click', '[data-seq]', (ev, btn) => {
+    const seq = Number(btn.dataset.seq);
+    toggled.set(seq, !isOpen(seq));
+    draw();
+  });
   return () => { for (const u of unsubs) u(); };
 }
 
@@ -22,14 +37,13 @@ async function act(a) {
   try {
     switch (a) {
       case 'start': return session.start();
-      case 'start-now': return session.start({ skipReady: true });
       case 'pause': return session.pause();
       case 'resume': return session.resume();
       case 'reset': return session.reset();
       case 'skip-ready': return session.skipReady();
       case 'done': return session.done();
       case 'skip': {
-        if (await confirmSheet({ title: 'Skip this exercise?', body: 'It will be logged as skipped so the round still counts. You can undo it.', okLabel: 'Skip' })) await session.skip();
+        if (await confirmSheet({ title: 'Skip this exercise?', body: 'It is logged as skipped so the round still counts. You can undo it.', okLabel: 'Skip' })) await session.skip();
         return;
       }
       case 'undo': {
@@ -38,57 +52,73 @@ async function act(a) {
       }
       case 'relax': return session.startRelax();
       case 'relax-done': return session.finishRelax();
-      case 'relax-skip': return session.finishRelax();
       default: return null;
     }
   } catch (e) { toast(e.message || 'Something went wrong', { error: true }); }
 }
 
+function isOpen(seq) {
+  if (toggled.has(seq)) return toggled.get(seq);
+  const cur = session.position.current;
+  return !!cur && cur.seq === seq;
+}
+
 function view() {
-  const s = store.settings;
   const pos = session.position;
   const mode = session.mode;
-  const phase = phaseById(s.phase);
   const parts = [];
 
   if (mode === 'complete') {
-    parts.push(completeCard());
+    parts.push(completeCard(), dayRecap());
   } else if (mode === 'relaxWait' || mode === 'relax') {
     parts.push(relaxCard(mode));
   } else {
-    parts.push(progressStrip(pos, phase));
+    parts.push(head(pos, mode));
     parts.push(timerPanel(pos, mode));
+    parts.push(sequences(pos));
   }
 
-  if (!pos.complete) parts.push(exerciseList(pos));
-  else if (mode === 'complete') parts.push(dayRecap());
-
-  parts.push(`<div class="row" style="justify-content:center;padding:4px 0">
-    ${session.entries.length ? `<button class="btn ghost sm" data-act="undo">Undo last</button>` : `<span class="muted small">${phase.label}: ${esc(phase.short)} · about ${planMinutes(s.phase, s)} min</span>`}
-  </div>`);
+  if (session.entries.length && mode !== 'complete') {
+    parts.push(`<div class="btn-row quiet"><button class="btn ghost sm" data-act="undo">Undo last</button></div>`);
+  }
   return `<div class="stack">${parts.join('')}</div>`;
 }
 
-function progressStrip(pos, phase) {
+// Round bar for the current sequence, and while the timer runs, the six-exercise strip.
+function head(pos, mode) {
   const cur = pos.current;
-  const blocks = phase.plan.map(([seq, rounds]) => {
-    const dots = [];
-    for (let r = 1; r <= rounds; r++) {
-      const doneIdx = pos.slots.findIndex((sl) => sl.seq === seq && sl.round === r);
-      const endIdx = doneIdx + 6;
-      const cls = pos.index >= endIdx ? 'done' : (cur && cur.seq === seq && cur.round === r) ? 'cur' : '';
-      dots.push(`<i class="dot ${cls}"></i>`);
-    }
-    return `<div class="blk" title="Sequence ${seq}">${dots.join('')}</div>`;
-  }).join('');
-  const pct = Math.round((pos.index / pos.total) * 100);
-  return `<div class="card" style="padding:14px 16px">
-    <div class="progress-strip">
-      <div><div class="seqname">Sequence ${cur.seq}</div><div class="muted small">Round <b class="tnum">${cur.round}</b> of ${cur.rounds} · Exercise ${cur.n} of 6</div></div>
-      <div class="round-dots">${blocks}</div>
-    </div>
-    <div class="bar" aria-label="Progress ${pct}%"><i style="width:${pct}%"></i></div>
+  const bar = [];
+  for (let r = 1; r <= cur.rounds; r++) {
+    const cls = r < cur.round ? 'done' : r === cur.round ? 'cur' : '';
+    bar.push(`<i class="${cls}"></i>`);
+  }
+  const active = mode !== 'idle';
+  return `<div>
+    <div class="round-bar" aria-label="Round ${cur.round} of ${cur.rounds}">${bar.join('')}</div>
+    ${active ? `<div class="ex-strip" aria-label="Exercise ${cur.n} of 6">${strip(pos)}</div>` : ''}
   </div>`;
+}
+
+function strip(pos) {
+  const cur = pos.current;
+  const done = doneThisRound(pos);
+  return sequence(cur.seq).map((e) => {
+    const k = keyOf(e);
+    const d = done.get(k);
+    if (d) return `<i class="${d.skipped ? 'skipped' : 'done'}">${d.skipped ? '–' : ICONS.check}</i>`;
+    return `<i class="${k === cur.key ? 'cur' : ''}">${e.n}</i>`;
+  }).join('');
+}
+
+function doneThisRound(pos) {
+  const cur = pos.current;
+  const entries = session.entries;
+  const map = new Map();
+  for (let i = 0; i < pos.index; i++) {
+    const sl = pos.slots[i];
+    if (sl.seq === cur.seq && sl.round === cur.round) map.set(sl.key, entries[i]);
+  }
+  return map;
 }
 
 function timerPanel(pos, mode) {
@@ -100,70 +130,93 @@ function timerPanel(pos, mode) {
   const k = keyOf(e);
   const running = mode === 'running' || mode === 'paused';
   const ready = mode === 'ready' || mode === 'ready-paused';
+  const compact = running || ready;
 
-  let display;
+  let body;
   if (ready) {
-    display = `<div class="phase-display k-count" data-phase-display>
+    body = ring('k-count', `
       <div class="phase" data-phase>Get ready</div>
       <div class="count" data-count>${t ? t.remaining : s.timer.getReady}</div>
-      <div class="rep">${esc(repsLabel(e, s))}</div>
-    </div>`;
+      <div class="rep">${esc(repsLabel(e, s))}</div>`, 0);
   } else if (running && t) {
-    display = `<div class="phase-display k-${t.kind}" data-phase-display>
+    body = ring(`k-${t.kind}`, `
       <div class="phase" data-phase>${esc(t.label)}</div>
       <div class="count" data-count>${t.remaining}</div>
-      <div class="rep" data-rep>${repLine(e, t, reps)}</div>
-    </div>
-    <div class="phase-track" data-track>${e.phases.map((p, i) => `<span class="k-${p[2]} ${i < t.phaseIdx ? 'done' : i === t.phaseIdx ? 'cur' : ''}" style="--w:${p[1]};--p:${Math.round(t.phaseProgress * 100)}%"></span>`).join('')}</div>
-    <div class="rep-dots" data-dots>${Array.from({ length: reps }, (_, i) => `<i class="${i + 1 < t.rep ? 'done' : i + 1 === t.rep ? 'cur' : ''}"></i>`).join('')}</div>`;
+      <div class="rep" data-rep>${repLine(e, t, reps)}</div>`, t.phaseProgress, t.phaseSeconds)
+      + `<div class="rep-dots ${reps > 6 ? 'many' : ''}" data-dots>${Array.from({ length: reps }, (_, i) => `<i class="${i + 1 < t.rep ? 'done' : i + 1 === t.rep ? 'cur' : ''}">${i + 1}</i>`).join('')}</div>`
+      + track(e, t);
   } else {
-    display = `<div style="padding:12px 0 14px">${tempoChips(e)}</div>`;
+    body = track(e, null);
   }
 
-  let buttons;
+  let acts;
   if (ready) {
-    buttons = `<div class="btn-row">
-      <button class="btn" data-act="${mode === 'ready' ? 'pause' : 'resume'}">${mode === 'ready' ? 'Pause' : 'Resume'}</button>
-      <button class="btn primary" data-act="skip-ready">Start now</button>
-      <button class="btn ghost" data-act="reset">Cancel</button>
+    acts = `<div class="btn-row">
+      <button class="btn primary big" data-act="skip-ready">Start now</button>
+      <button class="btn ghost" data-act="reset" style="flex:0 0 auto">Cancel</button>
     </div>`;
   } else if (mode === 'running') {
-    buttons = `<div class="btn-row">
-      <button class="btn" data-act="pause">Pause</button>
-      <button class="btn primary" data-act="done">${ICONS.check} Done</button>
+    acts = `<div class="btn-row">
+      <button class="btn big" data-act="pause">Pause</button>
+      <button class="btn primary big" data-act="done">Done</button>
     </div>
-    <div class="btn-row" style="margin-top:8px"><button class="btn ghost sm" data-act="reset">Reset timer</button><button class="btn ghost sm" data-act="skip">Skip</button></div>`;
+    <div class="btn-row quiet"><button class="btn ghost sm" data-act="skip">Skip</button></div>`;
   } else if (mode === 'paused') {
-    buttons = `<div class="btn-row">
-      <button class="btn brass" data-act="resume">Resume</button>
-      <button class="btn primary" data-act="done">${ICONS.check} Done</button>
+    acts = `<div class="btn-row">
+      <button class="btn brass big" data-act="resume">Resume</button>
+      <button class="btn primary big" data-act="done">Done</button>
     </div>
-    <div class="btn-row" style="margin-top:8px"><button class="btn ghost sm" data-act="reset">Reset timer</button><button class="btn ghost sm" data-act="skip">Skip</button></div>`;
+    <div class="btn-row quiet"><button class="btn ghost sm" data-act="reset">Reset</button><button class="btn ghost sm" data-act="skip">Skip</button></div>`;
   } else {
-    buttons = `<button class="btn primary big block" data-act="start">Start timer</button>
-    <div class="btn-row" style="margin-top:8px">
-      <button class="btn" data-act="done">${ICONS.check} Done without timer</button>
-      <button class="btn ghost" data-act="skip" style="flex:0 0 auto">Skip</button>
-    </div>`;
+    acts = `<button class="btn primary big block" data-act="start">Start timer</button>
+    <div class="btn-row quiet"><button class="btn ghost sm" data-act="done">Done without timer</button><button class="btn ghost sm" data-act="skip">Skip</button></div>`;
   }
 
-  return `<section class="timer" data-timer="${k}">
+  const meta = compact
+    ? esc(weightLabel(e, s.base))
+    : `${esc(weightLabel(e, s.base))}, ${esc(repsLabel(e, s))}, <button class="lvl" data-ex="${k}" aria-label="Level ${lv}, change level">level ${lv}${CHEV_SM}</button>`;
+
+  return `<section class="timer ${compact ? 'compact' : ''}" data-timer="${k}">
     <div class="head">
-      <div>
-        <div class="ex-key">${k} · ${running || ready ? esc(mode === 'paused' || mode === 'ready-paused' ? 'Paused' : 'Now') : 'Up now'}</div>
-        <div class="ex-name">${esc(e.name)}</div>
-        <div class="ex-meta">${esc(weightLabel(e, s.base))} · ${esc(repsLabel(e, s))} · Level ${lv}</div>
+      <div style="min-width:0">
+        ${compact ? '' : `<div class="ex-key">Exercise ${e.n} of 6</div>`}
+        <h1 class="ex-name">${esc(e.name)}</h1>
+        <div class="ex-meta">${meta}</div>
       </div>
-      <button class="hero" data-ex="${k}" aria-label="Show ${esc(e.name)} details" data-hero="${photoKey(k, 'step', 1)}" style="border:0;cursor:pointer">${heroImage(e.images)}</button>
+      <button class="hero" data-ex="${k}" aria-label="Show ${esc(e.name)} details" data-hero="${photoKey(k, 'step', 1)}">${heroImage(e.images)}</button>
     </div>
-    ${display}
-    ${buttons}
+    ${body}
+    <div class="acts">${acts}</div>
   </section>`;
+}
+
+function ring(kind, inner, progress, seconds = 2) {
+  const off = Math.round(RING_C * (1 - progress) * 100) / 100;
+  return `<div class="ring ${kind}" data-ring style="--dur:${seconds}s">
+    <svg class="arc" viewBox="0 0 272 272" aria-hidden="true">
+      <circle class="track" cx="136" cy="136" r="${RING_R}"/>
+      <circle class="prog" cx="136" cy="136" r="${RING_R}" stroke-dasharray="${RING_C}" stroke-dashoffset="${off}" transform="rotate(-90 136 136)" data-arc/>
+    </svg>
+    <div class="breath"></div>
+    <div class="phase-display ${kind}" data-phase-display>${inner}</div>
+  </div>`;
+}
+
+// The tempo strip: one block per phase, width by seconds, labels under.
+function track(e, t) {
+  const blocks = e.phases.map((p, i) => {
+    const cls = t ? (i < t.phaseIdx ? 'done' : i === t.phaseIdx ? 'cur' : '') : '';
+    return `<span class="k-${p[2]} ${cls}" style="--w:${p[1]};--p:${t && i === t.phaseIdx ? Math.round(t.phaseProgress * 100) : 0}%"></span>`;
+  }).join('');
+  const words = e.phases.map((p, i) => `<span class="${t && i === t.phaseIdx ? 'cur' : ''}">${i ? esc(p[0].toLowerCase()) : esc(p[0])}${p[1] > 1 ? ` ${p[1]}` : ''}</span>`).join(', ');
+  return `<div class="phase-track" data-track>${blocks}</div><div class="phase-labels" data-labels>${words}</div>`;
 }
 
 function repLine(e, t, reps) {
   const side = repSide(e, t.rep, reps);
-  return `Rep <b>${t.rep}</b> of ${reps}${side ? ` · <b>${esc(side)}</b>` : ''}`;
+  const next = e.phases[t.phaseIdx + 1];
+  const then = next ? `then ${esc(next[0].toLowerCase())}, ${next[1]} s` : `rep ${t.rep} of ${reps}`;
+  return side ? `<b>${esc(side)}</b>, ${then}` : then;
 }
 
 function tick(main, t) {
@@ -173,23 +226,32 @@ function tick(main, t) {
   const count = $('[data-count]', el);
   if (mode === 'relax') { if (count) count.textContent = fmtTime(Math.max(0, (1 - t.phaseProgress) * t.phaseSeconds * 1000)); return; }
   if (count && count.textContent !== String(t.remaining)) count.textContent = t.remaining;
+  const arc = $('[data-arc]', main);
+  if (arc) arc.setAttribute('stroke-dashoffset', Math.round(RING_C * (1 - t.phaseProgress) * 100) / 100);
   if (mode === 'ready' || mode === 'ready-paused') return;
   const e = session.exercise;
   if (!e) return;
   const reps = repsFor(e, store.settings);
   const ph = $('[data-phase]', el);
-  if (ph.textContent !== t.label) { ph.textContent = t.label; el.className = `phase-display k-${t.kind}`; }
+  if (ph.textContent !== t.label) {
+    ph.textContent = t.label;
+    el.className = `phase-display k-${t.kind}`;
+    const r = $('[data-ring]', main);
+    if (r) { r.className = `ring k-${t.kind}`; r.style.setProperty('--dur', `${t.phaseSeconds}s`); }
+  }
   const rep = $('[data-rep]', el);
   const line = repLine(e, t, reps);
   if (rep && rep.innerHTML !== line) rep.innerHTML = line;
   const track = $('[data-track]', main);
   if (track) {
     const spans = track.children;
+    const labels = $('[data-labels]', main)?.children;
     for (let i = 0; i < spans.length; i++) {
       const cls = i < t.phaseIdx ? 'done' : i === t.phaseIdx ? 'cur' : '';
       const want = `k-${e.phases[i][2]} ${cls}`;
       if (spans[i].className !== want) spans[i].className = want;
       if (i === t.phaseIdx) spans[i].style.setProperty('--p', `${Math.round(t.phaseProgress * 100)}%`);
+      if (labels && labels[i]) { const lc = i === t.phaseIdx ? 'cur' : ''; if (labels[i].className !== lc) labels[i].className = lc; }
     }
   }
   const dots = $('[data-dots]', main);
@@ -200,37 +262,55 @@ function tick(main, t) {
       if (ds[i].className !== cls) ds[i].className = cls;
     }
   }
+  const strip = $('.ex-strip', main);
+  if (strip) {
+    const cur = session.position.current;
+    const items = strip.children;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].className === 'done' || items[i].className === 'skipped') continue;
+      const want = cur && i + 1 === cur.n ? 'cur' : '';
+      if (items[i].className !== want) items[i].className = want;
+    }
+  }
 }
 
-function exerciseList(pos) {
+// The day's plan as sections: one per sequence, the current one open.
+function sequences(pos) {
   const cur = pos.current;
   const s = store.settings;
-  const exs = sequence(cur.seq);
-  const entries = session.entries;
-  // entries for this round: slots with same seq & round that are already done
-  const doneMap = new Map();
-  for (let i = 0; i < pos.index; i++) {
-    const sl = pos.slots[i];
-    if (sl.seq === cur.seq && sl.round === cur.round) doneMap.set(sl.key, entries[i]);
+  const plan = phaseById(s.phase).plan;
+  const done = doneThisRound(pos);
+  const parts = [];
+  for (const [seq, rounds] of plan) {
+    const open = isOpen(seq);
+    const finished = seq < cur.seq;
+    const current = seq === cur.seq;
+    const sub = current ? `round ${cur.round} of ${rounds}` : finished ? 'done' : `${rounds === 1 ? 'one round' : rounds === 3 ? 'three rounds' : `${rounds} rounds`}`;
+    parts.push(`<button class="seq-head ${open ? 'open' : ''}" data-seq="${seq}" aria-expanded="${open}">
+      <span class="t">${finished ? `<span class="ok">${ICONS.check}</span>` : ''}<b>Sequence ${seq}</b><span>${sub}</span></span>${open ? CHEV_UP : CHEV}
+    </button>`);
+    const rows = sequence(seq).map((e) => {
+      const k = keyOf(e);
+      const d = current ? done.get(k) : null;
+      const isCur = current && k === cur.key;
+      const cls = finished || (d && !d.skipped) ? 'done' : d && d.skipped ? 'skipped' : isCur ? 'cur' : '';
+      const fig = (finished || d)
+        ? `<span class="mark">${d && d.skipped ? '–' : ICONS.check}</span>`
+        : heroImage(e.images);
+      return `<button class="ex-row ${cls}" data-ex="${k}" data-thumb="${(finished || d) ? '' : photoKey(k, 'step', 1)}">
+        <span class="fig">${fig}</span>
+        <span class="n">${esc(e.name)}</span>
+        <span class="m">${esc(shortWeight(e, s.base))}</span>
+      </button>`;
+    }).join('');
+    parts.push(`<div class="ex-list">${rows}</div>`);
   }
-  const cards = exs.map((e) => {
-    const k = keyOf(e);
-    const done = doneMap.get(k);
-    const isCur = k === cur.key;
-    const cls = done ? (done.skipped ? 'done skipped' : 'done') : isCur ? 'cur' : '';
-    const st = done ? (done.skipped ? '–' : ICONS.check) : isCur ? '▶' : `<span class="muted">${e.n}</span>`;
-    return `<div class="ex-card ${cls}" data-ex="${k}" data-thumb="${photoKey(k, 'step', 1)}" role="button" tabindex="0">
-      <div class="thumb">${heroImage(e.images)}</div>
-      <div><div class="k">${k}</div><div class="n">${esc(e.name)}</div><div class="m">${esc(weightLabel(e, s.base))} · ${repsFor(e, s)} reps · L${s.levels[k] || 5}</div></div>
-      <div class="st">${st}</div>
-    </div>`;
-  }).join('');
-  const nextBlocks = phaseById(s.phase).plan.filter(([seq]) => seq > cur.seq);
-  const next = nextBlocks.length ? `<p class="muted small" style="margin:10px 0 0;text-align:center">Then ${nextBlocks.map(([seq, r]) => `Sequence ${seq} × ${r}`).join(', ')}</p>` : '';
-  return `<section>
-    <div class="card-title"><h2>Sequence ${cur.seq}</h2><span class="hint">tap a card for setup, steps and levels</span></div>
-    <div class="ex-list">${cards}</div>${next}
-  </section>`;
+  return `<section class="seqs">${parts.join('')}</section>`;
+}
+
+function shortWeight(e, base) {
+  const w = weightLabel(e, base);
+  return w === 'No weight' ? 'no weight' : w.replace(', or two at', ' or two at');
 }
 
 function relaxCard(mode) {
@@ -238,19 +318,20 @@ function relaxCard(mode) {
   const t = session.tstate;
   if (mode === 'relax') {
     return `<section class="timer">
-      <div class="head"><div><div class="ex-key">Last step</div><div class="ex-name">Relax</div><div class="ex-meta">Lie still, breathe slowly, let the body settle.</div></div></div>
-      <div class="phase-display k-count" data-phase-display>
+      <div class="head"><div><div class="ex-key">Last step</div><h1 class="ex-name">Relax</h1><div class="ex-meta">Lie still, breathe slowly, let the body settle.</div></div></div>
+      ${ring('k-count', `
         <div class="phase" data-phase>Lie still</div>
-        <div class="count" data-count style="font-size:72px">${t ? fmtTime((t.phaseSeconds - (t.phaseSeconds * t.phaseProgress)) * 1000) : fmtTime(s.timer.relaxMinutes * 60000)}</div>
-      </div>
-      <button class="btn primary block" data-act="relax-done">${ICONS.check} Finish</button>
+        <div class="count time" data-count>${t ? fmtTime((t.phaseSeconds - (t.phaseSeconds * t.phaseProgress)) * 1000) : fmtTime(s.timer.relaxMinutes * 60000)}</div>
+        <div class="rep"></div>`, t ? t.phaseProgress : 0, 1)}
+      <div class="acts"><button class="btn primary big block" data-act="relax-done">Finish</button></div>
     </section>`;
   }
   return `<section class="timer">
-    <div class="head"><div><div class="ex-key">All rounds done</div><div class="ex-name">Now relax</div><div class="ex-meta">The Gregoreks count rest as part of the program. ${s.timer.relaxMinutes} minutes lying still, then you're done for the day.</div></div></div>
-    <div style="height:12px"></div>
-    <button class="btn primary big block" data-act="relax">Start ${s.timer.relaxMinutes}-minute relax</button>
-    <div class="btn-row" style="margin-top:8px"><button class="btn ghost" data-act="relax-skip">Skip and finish</button></div>
+    <div class="head"><div><div class="ex-key">All rounds done</div><h1 class="ex-name">Now relax</h1><div class="ex-meta">${s.timer.relaxMinutes} minutes lying still, then the day is done.</div></div></div>
+    <div class="acts">
+      <button class="btn primary big block" data-act="relax">Start the relax</button>
+      <div class="btn-row quiet"><button class="btn ghost sm" data-act="relax-done">Skip and finish</button></div>
+    </div>
   </section>`;
 }
 
@@ -258,10 +339,9 @@ function completeCard() {
   const m = session.meta;
   const ms = session.elapsedMs();
   return `<section class="card complete-card">
-    <div class="ex-key">Today</div>
-    <div class="big">Done. Nicely done.</div>
-    <p class="muted">${m?.startedAt ? `Session time <b class="tnum">${fmtTime(ms)}</b>` : ''}</p>
-    <p class="muted small" style="margin:0">Streak, Standards and photos live under Progress. Same time tomorrow.</p>
+    <div class="ex-key" style="color:var(--accent);font-weight:600;font-size:13px">Today</div>
+    <div class="big">Done.</div>
+    <p class="muted">${m?.startedAt ? `Session time <b class="tnum">${fmtTime(ms)}</b>` : 'Same time tomorrow.'}</p>
   </section>`;
 }
 
@@ -280,11 +360,11 @@ function dayRecap() {
 async function afterDraw(main) {
   for (const el of $$('[data-thumb],[data-hero]', main)) {
     const key = el.dataset.thumb || el.dataset.hero;
+    if (!key) continue;
     const url = await photoURL(key);
     if (!url || !el.isConnected) continue;
-    const box = el.dataset.thumb ? $('.thumb', el) : el;
+    const box = el.dataset.thumb ? $('.fig', el) : el;
     const img = document.createElement('img'); img.src = url; img.alt = '';
     box.replaceChildren(img);
   }
 }
-
