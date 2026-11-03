@@ -195,7 +195,7 @@ const step = (s) => console.log('·', s);
   // ── No account, no network: still a full app ──
   step('signed out and offline from the service worker cache');
   const solo = await open('solo', { sw: true, noSync: true });
-  assert.match(await solo.page.textContent('main'), /not set up for this copy/);
+  assert.ok(await solo.page.isVisible('[data-signin]'), 'signed out: the Account card offers sign-in');
   await solo.page.evaluate(() => navigator.serviceWorker.ready);
   const cached = await solo.page.evaluate(async () => (await (await caches.open((await caches.keys())[0])).keys()).map((r) => new URL(r.url).pathname));
   for (const f of ['/js/merge.js', '/js/sync.js', '/js/config.js']) assert.ok(cached.includes(f), `${f} precached`);

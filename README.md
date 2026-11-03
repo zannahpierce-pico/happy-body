@@ -116,7 +116,7 @@ js/figure.js          generated line-drawing figures
 js/photos.js          replace a drawing with your photo
 js/data/exercises.js  the 18 exercises
 js/views/*.js         Today, Program, Progress (Streak, Standards, Photos), Settings, exercise sheet
-fonts/, icons/        Archivo fonts, app icons
+fonts/, icons/        Hanken Grotesk and Big Shoulders Display fonts, app icons
 supabase/setup.sql    one-time backend setup: table, photo bucket, row-level security
 ```
 
@@ -125,3 +125,4 @@ supabase/setup.sql    one-time backend setup: table, photo bucket, row-level sec
 - Whether week 2 is Seq 1 × 4 then Seq 2 × 4 (as built) or alternating rounds.
 - Rest between rounds, if the book specifies any: there is none built in beyond the get-ready countdown.
 - Later chapters' rules for raising weight beyond the week-7 increments.
+- The reps rule as the book states it. The Program tab says "6 to gain or keep muscle, 3 to lose or maintain", which reads as two overlapping cases; find the exact wording and what 3 reps is for.
