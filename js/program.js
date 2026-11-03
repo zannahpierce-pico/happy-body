@@ -44,9 +44,15 @@ export const STANDARDS = [
   { id: 'lean', name: 'Leanness', kind: 'number', unit: '% body fat', auto: null, lowerIsBetter: true,
     test: 'Body fat percentage. Enter the target from the book for your sex.' },
   { id: 'weight', name: 'Ideal body weight', kind: 'number', unit: 'lb', auto: 'weight',
-    test: 'Morning weight. Set your ideal body weight from the book\'s table as the target; aim for about 1% of it per week.' },
+    test: 'Morning weight. Target from Table 2.1: women 104 lb at 5 ft plus 3 lb per inch, men 120 lb at 5 ft plus 5 lb per inch. Move toward it by 1% of the ideal weight a week, then hold within about 2%.' },
   { id: 'posture', name: 'Posture', kind: 'pass', auto: null,
-    test: 'Stand with your back to a wall: heels, calves, glutes, shoulder blades and head all touching, standing tall and relaxed. Edit to match the book\'s test.' },
+    test: 'Stand with your back to a wall, arms raised overhead with elbows locked. Good: heels, buttocks, shoulder blades and back of the head touch the wall. Very good: the backs of the hands too. Excellent: the elbows too.' },
+];
+
+// Earlier placeholder texts. A stored copy that still matches one is replaced by the current default.
+export const OLD_STANDARD_TEXTS = [
+  'Morning weight. Set your ideal body weight from the book\'s table as the target; aim for about 1% of it per week.',
+  'Stand with your back to a wall: heels, calves, glutes, shoulder blades and head all touching, standing tall and relaxed. Edit to match the book\'s test.',
 ];
 
 export const DEFAULT_PROGRESS = {
@@ -63,7 +69,7 @@ export function standardMet(def, value, target) {
   if (target == null || target === '') return null;
   const v = Number(value), t = Number(target);
   if (Number.isNaN(v) || Number.isNaN(t)) return null;
-  return def.lowerIsBetter ? v <= t : (def.id === 'weight' ? Math.abs(v - t) <= Math.max(1, t * 0.01) : v >= t);
+  return def.lowerIsBetter ? v <= t : (def.id === 'weight' ? Math.abs(v - t) <= Math.max(1, t * 0.02) : v >= t);
 }
 
 // Latest value per standard from check-ins, with automatic feeds filled in by the caller.

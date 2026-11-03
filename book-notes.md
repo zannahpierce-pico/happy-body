@@ -80,3 +80,25 @@ Overhead Squat Press (strength/speed test), 11 steps, no seconds given (only "5 
 Page: 25-26
 App currently: per-exercise phases with seconds.
 Change needed: unclear (not one of the 18 exercises' tempos)
+
+## 10. Posture standard
+Book says: Stand naturally backing up against a wall, raise arms above head with elbows locked (Fig 2.18). People with good posture touch the wall at FOUR points: back of heels, buttocks, shoulder blades, back of head (no calves). Worst posture touches only buttocks. Degrees: Poor = only heels and buttocks touch; Fair = heels, buttocks, shoulder blades; Good = heels, buttocks, shoulder blades and back of head. Very Good and Excellent text not visible on the page (figure shows arms/hands progressively reaching the wall; likely arms touching wall too — unclear).
+Page: p.42
+App currently: wall test with heels, calves, glutes, shoulder blades and head touching.
+Change needed: yes — remove calves (four points, not five); arms are raised overhead with locked elbows; Good = all four points; Very Good/Excellent need the next page.
+
+## 9. Ideal body weight
+Book says: Table 2.1 (Happy Body Ideal Body Weight Index), female / male lb: 4'10" 98/110; 4'11" 101/115; 5'0" 104/120; 5'1" 107/125; 5'2" 110/130; 5'3" 113/135; 5'4" 116/140; 5'5" 119/145; 5'6" 122/150; 5'7" 125/155; 5'8" 128/160; 5'9" 131/165; 5'10" 134/170; 5'11" 137/175; 6'0" 140/180; 6'1" 143/185; 6'2" 146/190; 6'3" 149/195; 6'4" 152/200. Text: women +3 lb per inch, men +5 lb per inch. (Row alignment inferred from the +3/+5 per inch rule and 19 rows; photo is skewed.) Weekly rate: Week 2 page says you should lose or gain 1% of your Ideal Body Weight per week (2% by end of week 2); the Week 3 page repeats it. Maintenance example: ideal 110 lb → stay between 108 and 112 lb (about ±2%), eat more below, less above.
+Page: Ch. 2 "Ideal Body Weight", Table 2.1; Week 2/3 food review pages
+App currently: the book's table, and loss of about 1% of body weight per week.
+Change needed: yes (minor) — rate is 1% of IDEAL body weight per week, not of current body weight. Verify table values against the app.
+
+## 2. Rest between rounds (update)
+Owner says: needs separate research (not found in the pages photographed so far). Keep the app's current behavior until resolved.
+Change needed: unclear
+
+## 10. Posture standard (update: Very Good / Excellent)
+Book says: Very Good: heels, buttocks, shoulder blades and back of head touch the wall, and your raised arms above your head touch the wall with the back of your hands. Excellent: heels, buttocks, shoulder blades and back of head touch the wall, and your raised arms above your head touch the wall with the back of your hands and your elbows.
+Page: Ch. 2, after p.42 (continuation of Degrees of Good Posture)
+App currently: wall test with heels, calves, glutes, shoulder blades and head touching.
+Change needed: yes — no calves; Good = 4 points; Very Good adds back of hands on wall; Excellent adds elbows on wall too (arms raised overhead, elbows locked).
