@@ -79,7 +79,7 @@ function view() {
       <p class="small muted" style="margin:10px 0 0">Every other weight is a percentage of this one (Table 8.2 / 8.3), rounded to the nearest half pound. Follow the percentages even when a weight feels light.</p>
       <div class="divider"></div>
       <div class="row">
-        <span class="label">Reps on lifts<span class="small muted">6 to build or keep muscle, 3 to lose weight</span></span>
+        <span class="label">Reps on lifts<span class="small muted">6 to gain or keep muscle · 3 to lose or maintain</span></span>
         <div class="seg compact" style="width:120px"><button data-reps="6" class="${s.reps === 6 ? 'on' : ''}">6</button><button data-reps="3" class="${s.reps === 3 ? 'on' : ''}">3</button></div>
       </div>
       <div class="row">
@@ -94,7 +94,7 @@ function view() {
       <div class="card-title"><h2>Weights & levels</h2><span class="hint">tap a name for details</span></div>
       <div class="wl">
         ${[1, 2, 3].map((seq) => `
-          <div class="seqh">Sequence ${seq}${(seq > 1 && s.phase === 'w1') || (seq > 2 && s.phase === 'w2') ? '<span class="pill">not yet in plan</span>' : ''}</div>
+          <div class="seqh">Sequence ${seq}</div>
           ${EXERCISES.filter((e) => e.seq === seq).map((e) => {
             const k = keyOf(e);
             const lv = s.levels[k] || 5;

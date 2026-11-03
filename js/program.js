@@ -15,7 +15,7 @@ export const DEFAULT_SETTINGS = {
   version: 1,
   phase: 'w1',
   base: 3,            // lb per hand in 1:1
-  reps: 6,            // 6 = build or keep muscle, 3 = lose weight
+  reps: 6,            // 6 = gain/keep muscle, 3 = lose/maintain (wording to check against the book)
   sex: 'f',           // affects the week-7 increment hint only
   levels: Object.fromEntries(EXERCISES.map((e) => [key(e), 5])),
   programStart: null, // ISO date string of day 1

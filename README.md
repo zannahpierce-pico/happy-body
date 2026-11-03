@@ -83,3 +83,4 @@ fonts/, icons/        Archivo fonts, app icons
 - Whether week 2 is Seq 1 × 4 then Seq 2 × 4 (as built) or alternating rounds.
 - Rest between rounds, if the book specifies any: there is none built in beyond the get-ready countdown.
 - Later chapters' rules for raising weight beyond the week-7 increments.
+- The reps rule as the book states it. The Program tab says "6 to gain or keep muscle, 3 to lose or maintain", which reads as two overlapping cases; find the exact wording and what 3 reps is for.
