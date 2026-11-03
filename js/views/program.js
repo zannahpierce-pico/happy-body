@@ -93,7 +93,7 @@ function view() {
     <section class="card">
       <div class="card-title"><h2>Weights & levels</h2><span class="hint">tap a name for details</span></div>
       <div class="wl">
-        ${[1, 2, 3].map((seq) => `
+        ${phaseById(s.phase).plan.map(([seq]) => `
           <div class="seqh">Sequence ${seq}</div>
           ${EXERCISES.filter((e) => e.seq === seq).map((e) => {
             const k = keyOf(e);
