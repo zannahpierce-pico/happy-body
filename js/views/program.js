@@ -84,7 +84,7 @@ function view() {
       </div>
       <div class="row">
         <span class="label">Weight increase<span class="small muted">when a session takes 30 min and nothing is sore</span></span>
-        <div class="seg compact" style="width:150px"><button data-sex="f" class="${s.sex !== 'm' ? 'on' : ''}">+1 lb</button><button data-sex="m" class="${s.sex === 'm' ? 'on' : ''}">+2 lb</button></div>
+        <div class="seg compact" style="width:200px"><button data-sex="f" class="${s.sex !== 'm' ? 'on' : ''}">Woman, +1 lb</button><button data-sex="m" class="${s.sex === 'm' ? 'on' : ''}">Man, +2 lb</button></div>
       </div>
       <div class="divider"></div>
       <button class="btn block" data-sore>Sore or stiff this week?</button>

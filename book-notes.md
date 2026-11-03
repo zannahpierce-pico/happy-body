@@ -102,3 +102,15 @@ Book says: Very Good: heels, buttocks, shoulder blades and back of head touch th
 Page: Ch. 2, after p.42 (continuation of Degrees of Good Posture)
 App currently: wall test with heels, calves, glutes, shoulder blades and head touching.
 Change needed: yes — no calves; Good = 4 points; Very Good adds back of hands on wall; Excellent adds elbows on wall too (arms raised overhead, elbows locked).
+
+## 5. Flexibility standard (owner note)
+Owner's reading: the Poor–Excellent scores apply per test (each of the five tests is graded separately), not as one overall grade. Consistent with the pages (each test has its own five-level list). How the five grades combine into "achieved the standard" is not on the photographed pages — still unclear.
+Change needed: yes (grade each of the five tests separately)
+
+## 6. Strength standard (owner note)
+Owner's reading: the book's examples use the person's CURRENT body weight (the authors' own weights happened to be ideal, so the text is ambiguous). Target = current body weight x 58% (men) / x 45% (women), total across both dumbbells. Not definitively stated in the pages photographed.
+Change needed: unclear (owner leans: use current weight)
+
+## 2. Rest between rounds (web research, inconclusive)
+Two web searches found no stated rest interval. Only general themes: recovery/rest is central to the program, the authors criticize nonstop endurance exercise, and exercises are done at a set tempo with breathing. Exact figure, if any, is in the book's exercise chapter or the DVD/official site.
+Change needed: unclear

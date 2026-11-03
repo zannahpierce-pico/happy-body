@@ -1,7 +1,7 @@
 // Progress: Streak (the 28-day grid), Standards (the six Happy Body Standards with
 // check-ins and weigh-ins) and Photos (dated progress photos with side-by-side compare).
 import { store } from '../store.js';
-import { STANDARDS, standardMet, latestValues, weeklyChange, sessionMinutes, groupByDay, dayOf } from '../program.js';
+import { STANDARDS, standardMet, latestValues, weeklyChange, sessionMinutes, groupByDay, dayOf, autoTarget } from '../program.js';
 import { render as renderStreak } from './streak.js';
 import { pickPhoto, downscale, photoURL } from '../photos.js';
 import { esc, on, $, $$, toast, sheet, confirmSheet, fmtDate, fmtLb, ICONS } from '../ui.js';
@@ -46,8 +46,10 @@ function currentValues() {
     if (def.auto === 'base') { value = store.settings.base; source = 'from your base weight'; }
     if (def.auto === 'session' && sessions.length) { const s = sessions[sessions.length - 1]; value = s.minutes; source = `last complete session, ${fmtDate(new Date(s.day + 'T12:00'))}`; }
     if (def.auto === 'weight' && p.weights.length) { const w = p.weights[p.weights.length - 1]; value = w.lb; source = `weigh-in ${fmtDate(w.ts)}`; }
-    const target = p.standards[def.id]?.target;
-    out[def.id] = { value, source, target, met: standardMet(def, value, target) };
+    const typed = p.standards[def.id]?.target;
+    const auto = typed == null || typed === '' ? autoTarget(def, store.settings, p) : null;
+    const target = auto ?? typed;
+    out[def.id] = { value, source, target, auto, met: standardMet(def, value, target) };
   }
   return out;
 }
@@ -134,7 +136,7 @@ function standardsView(editing) {
       action = `<div class="row"><input type="number" inputmode="decimal" step="0.1" placeholder="${esc(d.unit)}" data-value-input="${d.id}" style="flex:1"><button class="btn sm" data-save-value="${d.id}">Save</button></div>`;
     }
     const target = d.kind === 'number'
-      ? `<div class="row" style="margin-top:8px"><span class="label small">Target<span class="small muted">${d.lowerIsBetter ? 'at or under' : d.id === 'weight' ? 'within 2%' : 'at or above'}</span></span><input type="number" inputmode="decimal" step="0.5" data-target="${d.id}" value="${p.standards[d.id].target ?? ''}" placeholder="${esc(d.unit)}" style="width:120px"></div>`
+      ? `<div class="row" style="margin-top:8px"><span class="label small">Target<span class="small muted">${d.lowerIsBetter ? 'at or under' : d.id === 'weight' ? 'within 2%' : 'at or above'}${c.auto != null ? `, ${d.id === 'strength' ? 'from your weigh-in' : 'from the book'}` : ''}</span></span><input type="number" inputmode="decimal" step="0.5" data-target="${d.id}" value="${p.standards[d.id].target ?? ''}" placeholder="${c.auto != null ? fmtLb(c.auto) : esc(d.unit)}" style="width:120px"></div>`
       : '';
     return `<section class="card std">
       <div class="card-title"><h3>${esc(d.name)}</h3>${status}</div>
