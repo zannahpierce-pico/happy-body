@@ -1,5 +1,6 @@
-// Entry point: boot the store, route between tabs, keep the top bar live, register the service worker.
+// Entry point: boot the store, start sync, route between tabs, keep the top bar live, register the service worker.
 import { store } from './store.js';
+import { sync } from './sync.js';
 import { session } from './session.js';
 import { phaseById, repsFor } from './program.js';
 import { byKey } from './data/exercises.js';
@@ -46,7 +47,7 @@ function drawTopbar() {
   const week = session.week;
   const phase = phaseById(s.phase);
   let title = tab.title;
-  let sub = tab.id === 'program' ? 'Weights, levels and phase' : tab.id === 'progress' ? 'Streak, the six Standards, photos' : 'Cues, theme and backup';
+  let sub = tab.id === 'program' ? 'Weights, levels and phase' : tab.id === 'progress' ? 'Streak, the six Standards, photos' : 'Cues, theme, account and backup';
   if (tab.id === 'today') {
     const pos = session.position;
     const cur = pos.current;
@@ -119,8 +120,9 @@ async function boot() {
   store.subscribe((what) => { if (what === 'settings' || what === 'today' || what === 'import') drawTopbar(); if (what === 'status' && store.status.error) toast(`Save failed: ${store.status.error}`, { error: true, ms: 5000 }); });
   session.subscribe((what) => { if (what === 'state') drawTopbar(); });
   session.refresh();
+  sync.start();
   registerSW();
-  window.hb = { store, session }; // handy in the console
+  window.hb = { store, session, sync }; // handy in the console
 }
 
 boot();

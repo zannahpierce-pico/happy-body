@@ -1,6 +1,6 @@
 // Service worker: precache everything on install, serve cache-first, and tell the
 // page when a new version is waiting. Bump VERSION whenever any file changes.
-const VERSION = 'hb-v2.0.0';
+const VERSION = 'hb-v2.1.0';
 const ASSETS = [
   './',
   './index.html',
@@ -9,6 +9,9 @@ const ASSETS = [
   './js/app.js',
   './js/ui.js',
   './js/store.js',
+  './js/merge.js',
+  './js/sync.js',
+  './js/config.js',
   './js/program.js',
   './js/timer.js',
   './js/audio.js',
