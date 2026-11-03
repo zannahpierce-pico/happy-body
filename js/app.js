@@ -1,7 +1,8 @@
 // Entry point: boot the store, route between tabs, keep the top bar live, register the service worker.
 import { store } from './store.js';
 import { session } from './session.js';
-import { phaseById } from './program.js';
+import { phaseById, repsFor } from './program.js';
+import { byKey } from './data/exercises.js';
 import { $, esc, fmtTime, ICONS, toast } from './ui.js';
 import * as todayView from './views/today.js';
 import * as programView from './views/program.js';
@@ -44,13 +45,31 @@ function drawTopbar() {
   const s = store.settings;
   const week = session.week;
   const phase = phaseById(s.phase);
-  const sub = tab.id === 'today'
-    ? `${week ? `Program week ${week} · ` : ''}${esc(phase.short)}`
-    : tab.id === 'program' ? 'Weights, levels and phase' : tab.id === 'progress' ? 'Streak, the six Standards, photos' : 'Cues, theme and backup';
+  let title = tab.title;
+  let sub = tab.id === 'program' ? 'Weights, levels and phase' : tab.id === 'progress' ? 'Streak, the six Standards, photos' : 'Cues, theme and backup';
+  if (tab.id === 'today') {
+    const pos = session.position;
+    const cur = pos.current;
+    title = cur ? `Sequence ${cur.seq}, round ${cur.round} of ${cur.rounds}` : 'Today';
+    const left = cur ? minutesLeft(pos) : 0;
+    sub = [week ? `Week ${week}` : esc(phase.label), left ? `about ${left} min left` : ''].filter(Boolean).join(', ');
+  }
   const ms = session.elapsedMs();
   const right = tab.id === 'today' && session.meta?.startedAt
     ? `<div class="right">${session.meta.finishedAt ? 'Session' : 'Elapsed'}<br><strong class="tnum" data-elapsed>${fmtTime(ms)}</strong></div>` : '';
-  $('#topbar').innerHTML = `<div><h1>${esc(tab.title)}</h1><div class="sub">${sub}</div></div>${right}`;
+  $('#topbar').innerHTML = `<div><h1>${esc(title)}</h1><div class="sub">${sub}</div></div>${right}`;
+}
+
+// Minutes still to go today, from the tempo of every remaining slot.
+function minutesLeft(pos) {
+  const s = store.settings;
+  let secs = 0;
+  for (let i = pos.index; i < pos.slots.length; i++) {
+    const e = byKey[pos.slots[i].key];
+    const per = e.phases.reduce((a, p) => a + p[1], 0);
+    secs += per * repsFor(e, s) + (s.timer?.getReady || 0);
+  }
+  return Math.max(1, Math.round(secs / 60));
 }
 
 setInterval(() => {

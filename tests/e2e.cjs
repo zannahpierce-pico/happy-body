@@ -83,7 +83,7 @@ const server = http.createServer((req, res) => {
   console.log('export:', JSON.stringify(exp));
 
   // Exercise sheet
-  await page.click('.ex-card');
+  await page.click('.ex-row');
   await page.waitForSelector('.sheet'); await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/06-exercise.png`, fullPage: false });
   await page.click('[data-level="3"]');
