@@ -105,7 +105,7 @@ function view() {
 }
 
 const fmtWhen = (ts) => (new Date(ts).toDateString() === new Date().toDateString() ? `today ${fmtClock(ts)}` : `${fmtDate(ts)} ${fmtClock(ts)}`);
-const INPUT = 'style="width:100%;font:inherit;padding:8px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--text);min-height:40px"';
+const INPUT = 'style="width:100%"';
 
 function accountCard() {
   if (!sync.configured) {
@@ -115,7 +115,7 @@ function accountCard() {
     </section>`;
   }
   const u = sync.user;
-  const err = sync.error && sync.state !== 'offline' ? `<p class="small" style="color:var(--red);margin:8px 0 0">${esc(sync.error)}</p>` : '';
+  const err = sync.error && sync.state !== 'offline' ? `<p class="small" style="color:var(--red);margin:10px 0 0">${esc(sync.error)}</p>` : '';
   if (!u) {
     return `<section class="card">
       <div class="card-title"><h2>Account</h2></div>
@@ -128,12 +128,12 @@ function accountCard() {
   const status = st === 'syncing' ? 'Syncing…' : st === 'offline' ? 'Offline' : st === 'error' ? 'Sync failed' : 'Synced';
   const last = sync.lastSynced;
   return `<section class="card">
-    <div class="card-title"><h2>Account</h2><span class="hint" data-sync-state><span class="save-dot ${dot}"></span>${status}</span></div>
+    <div class="card-title"><h2>Account</h2><span class="small muted" data-sync-state><span class="save-dot ${dot}"></span>${status}</span></div>
     <div class="row"><span class="label small">Signed in as</span><span>${esc(u.email)}</span></div>
     <div class="row"><span class="label small">Last synced</span><span class="tnum" data-last-synced>${last ? fmtWhen(last) : 'not yet'}</span></div>
     <div class="row"><span class="label small">Changes waiting to sync</span><span class="tnum" data-sync-pending>${store.syncPending}</span></div>
     ${err}
-    <div class="btn-row" style="margin-top:10px"><button class="btn" data-sync-now ${st === 'syncing' ? 'disabled' : ''}>Sync now</button><button class="btn" data-signout>Sign out</button></div>
+    <div class="btn-row" style="margin-top:10px"><button class="btn" data-sync-now ${st === 'syncing' ? 'disabled' : ''}>Sync now</button><button class="btn ghost" data-signout>Sign out</button></div>
   </section>`;
 }
 
@@ -144,7 +144,7 @@ function signInFlow() {
       <input type="email" name="email" autocomplete="username" placeholder="Email" aria-label="Email" ${INPUT}>
       <input type="password" name="password" autocomplete="current-password" placeholder="Password" aria-label="Password" ${INPUT}>
       <div class="btn-row"><button class="btn primary" data-act="signin">Sign in</button><button type="button" class="btn" data-act="signup">Create account</button></div>
-      <button type="button" class="btn sm block" data-act="code">Email me a sign-in code instead</button>
+      <button type="button" class="btn ghost block" data-act="code">Email me a sign-in code instead</button>
       <div class="stack" data-code-step hidden>
         <input name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="Code from the email" aria-label="Code from the email" ${INPUT}>
         <button type="button" class="btn primary block" data-act="verify">Sign in with code</button>
