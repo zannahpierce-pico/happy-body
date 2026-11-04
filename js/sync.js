@@ -58,11 +58,13 @@ class Sync {
 
   get configured() { return !!config(); }
   get user() { return this.session?.user || null; }
+  // Signed in from an emailed link, and afterSignIn has not attached this device yet.
+  get pendingAttach() { return !!this.session?.pending; }
   get lastSynced() { return store.syncMeta.lastSynced; }
 
   start() {
     // Keep the store's idea of who is signed in in step with the saved session.
-    if (this.user && store.syncMeta.userId !== this.user.id) store.setSyncUser(this.user.id);
+    if (this.user && !this.pendingAttach && store.syncMeta.userId !== this.user.id) store.setSyncUser(this.user.id);
     if (!this.user && store.syncMeta.userId) store.setSyncUser(null);
     store.subscribe((what) => { if (what === 'dirty') this.schedule(); });
     window.addEventListener('online', () => this.schedule(0));
@@ -111,14 +113,38 @@ class Sync {
   async signUp(email, password) {
     return this.keep(await this.auth('signup', { email, password })) ? this.user : null;
   }
-  async sendCode(email) { await this.auth('otp', { email, create_user: false }); }
-  async verifyCode(email, token) {
-    this.keep(await this.auth('verify', { type: 'email', email, token }));
+  // Emails a one-time sign-in link back to this page (Supabase falls back to the
+  // project's Site URL when this address is not on its allow list).
+  async sendLink(email) {
+    const back = encodeURIComponent(location.origin + location.pathname);
+    await this.auth(`otp?redirect_to=${back}`, { email, create_user: false });
+  }
+
+  // Opened from the emailed link: the session arrives in the address hash
+  // (#access_token=…&refresh_token=…). Returns the user, or null; throws the
+  // link's error (expired, already used). Always leaves the hash on #settings.
+  async takeRedirect() {
+    const h = new URLSearchParams(location.hash.slice(1));
+    if (!h.has('access_token') && !h.has('error_description')) return null;
+    history.replaceState(null, '', `${location.pathname}${location.search}#settings`);
+    if (h.has('error_description')) throw new Error(`That sign-in link did not work: ${h.get('error_description')}`);
+    const c = config();
+    if (!c) return null;
+    let res;
+    try { res = await fetch(`${c.url}/auth/v1/user`, { cache: 'no-store', headers: { apikey: c.key, authorization: `Bearer ${h.get('access_token')}` } }); }
+    catch { throw netErr(); }
+    const user = await res.json().catch(() => null);
+    if (!res.ok || !user?.id) throw new Error(errMsg(user, res.status));
+    const expiresIn = Number(h.get('expires_in')) || 3600;
+    this.keep({ access_token: h.get('access_token'), refresh_token: h.get('refresh_token'), expires_at: Number(h.get('expires_at')) || Math.floor(Date.now() / 1000) + expiresIn, user });
+    this.session.pending = true;
+    lsSet(AUTH, this.session);
     return this.user;
   }
 
   // After signing in: attach this device's data to the account and sync.
   attach() {
+    if (this.session?.pending) { delete this.session.pending; lsSet(AUTH, this.session); }
     store.setSyncUser(this.user.id);
     this.setState('idle');
     return this.syncNow();
@@ -173,7 +199,7 @@ class Sync {
   // ── Sync ──
   // One cycle at a time; a request that arrives mid-cycle runs one more after it.
   syncNow() {
-    if (!this.user || !this.configured) return Promise.resolve();
+    if (!this.user || this.pendingAttach || !this.configured) return Promise.resolve();
     if (this.running) { this.again = true; return this.running; }
     this.running = (async () => {
       do { this.again = false; await this.cycle(); } while (this.again && this.user);

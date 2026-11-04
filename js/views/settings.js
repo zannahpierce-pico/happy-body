@@ -144,11 +144,7 @@ function signInFlow() {
       <input type="email" name="email" autocomplete="username" placeholder="Email" aria-label="Email" ${INPUT}>
       <input type="password" name="password" autocomplete="current-password" placeholder="Password" aria-label="Password" ${INPUT}>
       <div class="btn-row"><button class="btn primary" data-act="signin">Sign in</button><button type="button" class="btn" data-act="signup">Create account</button></div>
-      <button type="button" class="btn ghost block" data-act="code">Email me a sign-in code instead</button>
-      <div class="stack" data-code-step hidden>
-        <input name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="Code from the email" aria-label="Code from the email" ${INPUT}>
-        <button type="button" class="btn primary block" data-act="verify">Sign in with code</button>
-      </div>
+      <button type="button" class="btn ghost block" data-act="link">Email me a sign-in link instead</button>
       <p class="small muted" data-msg style="margin:0"></p>
     </form>`);
   const form = $('[data-auth]', sh.el);
@@ -175,24 +171,17 @@ function signInFlow() {
         need(true); msg('Creating your account…');
         const user = await sync.signUp(val('email'), form.elements.password.value);
         if (user) await done(user); else msg('Check your email to confirm the account, then sign in here.');
-      } else if (act === 'code') {
+      } else if (act === 'link') {
         need(false); msg('Sending…');
-        await sync.sendCode(val('email'));
-        $('[data-code-step]', sh.el).hidden = false;
-        form.elements.code.focus();
-        msg('We sent a code to your email. Enter it here; the link in the email works too, but only in Safari.');
-      } else if (act === 'verify') {
-        need(false);
-        if (!val('code')) throw new Error('Enter the code from the email');
-        msg('Signing in…');
-        await done(await sync.verifyCode(val('email'), val('code')));
+        await sync.sendLink(val('email'));
+        msg('Sent. Open the link in the email on this device to sign in. On an iPhone the link opens in Safari, so in the home-screen app sign in with your password instead.');
       }
     });
   });
 }
 
 // Data left by a different account on this device: erase it or add it to this account.
-async function afterSignIn(user) {
+export async function afterSignIn(user) {
   const last = store.syncMeta.lastUserId;
   if (last && last !== user.id && store.hasData) {
     const choice = await new Promise((resolve) => {

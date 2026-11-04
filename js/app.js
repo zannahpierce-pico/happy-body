@@ -114,13 +114,18 @@ async function boot() {
     toast('Storage could not be opened. Data may not save.', { error: true, ms: 6000 });
   }
   applyTheme(store.settings.theme);
+  // Opened from an emailed sign-in link: take the session out of the address before routing.
+  const linked = await sync.takeRedirect().catch((e) => { toast(e.network ? 'You are offline. Open the link again when connected.' : e.message, { error: true, ms: 6000 }); return null; })
+    || (sync.pendingAttach ? sync.user : null);
   drawNav();
   route();
-  window.addEventListener('hashchange', route);
+  // A sign-in link opened in a tab that already has the app: start over so boot reads it.
+  window.addEventListener('hashchange', () => { if (/^#(access_token|error)=/.test(location.hash)) location.reload(); else route(); });
   store.subscribe((what) => { if (what === 'settings' || what === 'today' || what === 'import') drawTopbar(); if (what === 'status' && store.status.error) toast(`Save failed: ${store.status.error}`, { error: true, ms: 5000 }); });
   session.subscribe((what) => { if (what === 'state') drawTopbar(); });
   session.refresh();
   sync.start();
+  if (linked) settingsView.afterSignIn(linked);
   registerSW();
   window.hb = { store, session, sync }; // handy in the console
 }

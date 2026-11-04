@@ -5,12 +5,14 @@
 const http = require('http');
 const crypto = require('crypto');
 
-function createFakeSupabase({ anonKey = 'sb_publishable_test', expiresIn = 3600, code = '123456' } = {}) {
+function createFakeSupabase({ anonKey = 'sb_publishable_test', expiresIn = 3600 } = {}) {
   const users = new Map();      // email -> {id, email, password}
   const access = new Map();     // token -> user id
   const refresh = new Map();    // token -> user id
   const rows = new Map();       // `${uid}|${kind}|${id}` -> row
   const files = new Map();      // path -> {type, body}
+  const links = new Map();      // email -> the sign-in link last "emailed"
+  const fail = new Set();       // emails whose next link comes back expired
   let clock = 0;
   const now = () => (clock = Math.max(clock + 1, Date.now()));
   const tok = () => crypto.randomBytes(16).toString('hex');
@@ -37,6 +39,7 @@ function createFakeSupabase({ anonKey = 'sb_publishable_test', expiresIn = 3600,
     const url = new URL(req.url, 'http://x');
     const p = url.pathname;
 
+    if (p === '/__link') return send(200, { link: links.get(url.searchParams.get('email')) || null });
     if (p === '/__dump') return send(200, { users: [...users.values()].map((u) => ({ id: u.id, email: u.email })), rows: [...rows.values()], files: [...files.keys()] });
     if (req.headers.apikey !== anonKey) return send(401, { message: 'Invalid API key' });
 
@@ -65,13 +68,24 @@ function createFakeSupabase({ anonKey = 'sb_publishable_test', expiresIn = 3600,
         }
       }
       if (route === 'otp') {
-        if (!users.has(b.email)) return send(422, { code: 422, error_code: 'otp_disabled', msg: 'Signups not allowed for otp' });
+        const u = users.get(b.email);
+        if (!u) return send(422, { code: 422, error_code: 'otp_disabled', msg: 'Signups not allowed for otp' });
+        // The link's verify step redirects back with the session (or an error) in the hash.
+        const back = url.searchParams.get('redirect_to');
+        let hash;
+        if (fail.delete(b.email)) hash = 'error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired';
+        else {
+          const s = session(u);
+          hash = new URLSearchParams({ access_token: s.access_token, expires_at: String(s.expires_at), expires_in: String(s.expires_in), refresh_token: s.refresh_token, token_type: 'bearer', type: 'magiclink' }).toString();
+        }
+        links.set(b.email, `${back}#${hash}`);
         return send(200, {});
       }
-      if (route === 'verify') {
-        const u = users.get(b.email);
-        if (!u || b.token !== code) return send(403, { code: 403, error_code: 'otp_expired', msg: 'Token has expired or is invalid' });
-        return send(200, session(u));
+      if (route === 'user') {
+        const uid = access.get((req.headers.authorization || '').replace(/^Bearer /, ''));
+        const u = uid && byId(uid);
+        if (!u) return send(401, { code: 401, error_code: 'bad_jwt', msg: 'invalid JWT' });
+        return send(200, { id: u.id, email: u.email, aud: 'authenticated' });
       }
       if (route === 'logout') { access.delete((req.headers.authorization || '').slice(7)); return send(204, null); }
       return send(404, { msg: 'not found' });
@@ -127,7 +141,9 @@ function createFakeSupabase({ anonKey = 'sb_publishable_test', expiresIn = 3600,
   });
 
   return {
-    server, anonKey, code,
+    server, anonKey,
+    link: (email) => links.get(email),
+    expireNextLink: (email) => fail.add(email),
     listen: () => new Promise((r) => server.listen(0, () => r(`http://localhost:${server.address().port}`))),
     close: () => server.close(),
     dump: () => ({ users: [...users.values()], rows: [...rows.values()], files: [...files.keys()] }),
