@@ -1,3 +1,7 @@
 .DS_Store
 node_modules/
 tests/shots/
+
+# Photographed book pages (copyrighted, reference only)
+reference/book/
+reference/
