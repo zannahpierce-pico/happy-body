@@ -1,7 +1,7 @@
 // Progress: Streak (the 28-day grid), Standards (the six Happy Body Standards with
 // check-ins and weigh-ins) and Photos (dated progress photos with side-by-side compare).
 import { store } from '../store.js';
-import { STANDARDS, standardMet, latestValues, weeklyChange, sessionMinutes, groupByDay, dayOf } from '../program.js';
+import { STANDARDS, standardMet, latestValues, weeklyChange, sessionMinutes, groupByDay, dayOf, autoTarget } from '../program.js';
 import { render as renderStreak } from './streak.js';
 import { pickPhoto, downscale, photoURL } from '../photos.js';
 import { esc, on, $, $$, toast, sheet, confirmSheet, fmtDate, fmtLb, ICONS } from '../ui.js';
@@ -46,8 +46,10 @@ function currentValues() {
     if (def.auto === 'base') { value = store.settings.base; source = 'from your base weight'; }
     if (def.auto === 'session' && sessions.length) { const s = sessions[sessions.length - 1]; value = s.minutes; source = `last complete session, ${fmtDate(new Date(s.day + 'T12:00'))}`; }
     if (def.auto === 'weight' && p.weights.length) { const w = p.weights[p.weights.length - 1]; value = w.lb; source = `weigh-in ${fmtDate(w.ts)}`; }
-    const target = p.standards[def.id]?.target;
-    out[def.id] = { value, source, target, met: standardMet(def, value, target) };
+    const typed = p.standards[def.id]?.target;
+    const auto = typed == null || typed === '' ? autoTarget(def, store.settings, p) : null;
+    const target = auto ?? typed;
+    out[def.id] = { value, source, target, auto, met: standardMet(def, value, target) };
   }
   return out;
 }
@@ -125,7 +127,7 @@ function standardsView(editing) {
   const fmtVal = (d, v) => v == null ? '—' : d.kind === 'pass' ? (v ? 'Met' : 'Not yet') : `${fmtLb(v)} ${d.unit}`;
   const cards = STANDARDS.map((d) => {
     const c = cur[d.id];
-    const status = c.met === true ? '<span class="pill green">met</span>' : c.met === false ? '<span class="pill">not yet</span>' : '<span class="pill blue">no target</span>';
+    const status = c.met === true ? '<span class="pill green">met</span>' : c.met === false ? '<span class="pill">not yet</span>' : c.value == null ? '<span class="pill blue">no entry</span>' : '<span class="pill blue">no target</span>';
     const isEditing = editing === d.id;
     let action = '';
     if (d.kind === 'pass') {
@@ -134,14 +136,14 @@ function standardsView(editing) {
       action = `<div class="row"><input type="number" inputmode="decimal" step="0.1" placeholder="${esc(d.unit)}" data-value-input="${d.id}" style="flex:1"><button class="btn sm" data-save-value="${d.id}">Save</button></div>`;
     }
     const target = d.kind === 'number'
-      ? `<div class="row" style="margin-top:8px"><span class="label small">Target<span class="small muted">${d.lowerIsBetter ? 'at or under' : d.id === 'weight' ? 'within 1%' : 'at or above'}</span></span><input type="number" inputmode="decimal" step="0.5" data-target="${d.id}" value="${p.standards[d.id].target ?? ''}" placeholder="${esc(d.unit)}" style="width:120px"></div>`
+      ? `<div class="row" style="margin-top:8px"><span class="label small">Target<span class="small muted">${d.lowerIsBetter ? 'at or under' : d.id === 'weight' ? 'within 2%' : 'at or above'}${c.auto != null ? `, ${d.id === 'strength' ? 'from your weigh-in' : 'from the book'}` : ''}</span></span><input type="number" inputmode="decimal" step="0.5" data-target="${d.id}" value="${p.standards[d.id].target ?? ''}" placeholder="${c.auto != null ? fmtLb(c.auto) : esc(d.unit)}" style="width:120px"></div>`
       : '';
     return `<section class="card std">
       <div class="card-title"><h3>${esc(d.name)}</h3>${status}</div>
       <div class="row"><span class="label">Now<span class="small muted">${esc(c.source || 'no entry yet')}</span></span><b class="tnum" style="font-size:18px">${fmtVal(d, c.value)}</b></div>
       ${target}
       ${isEditing
-        ? `<div style="margin-top:10px"><textarea data-test-input="${d.id}" rows="3" style="width:100%;font:inherit;padding:8px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--text)">${esc(p.standards[d.id].test)}</textarea><div class="btn-row" style="margin-top:6px"><button class="btn sm" data-edit-test="${d.id}">Cancel</button><button class="btn sm primary" data-save-test="${d.id}">Save text</button></div></div>`
+        ? `<div style="margin-top:10px"><textarea data-test-input="${d.id}" rows="3" style="width:100%">${esc(p.standards[d.id].test)}</textarea><div class="btn-row" style="margin-top:6px"><button class="btn sm" data-edit-test="${d.id}">Cancel</button><button class="btn sm primary" data-save-test="${d.id}">Save text</button></div></div>`
         : `<p class="small muted" style="margin:8px 0 10px">${esc(p.standards[d.id].test)} <button class="btn ghost sm" style="min-height:0;padding:0 4px" data-edit-test="${d.id}">Edit</button></p>`}
       ${action}
     </section>`;
@@ -155,7 +157,7 @@ function standardsView(editing) {
     <section class="card">
       <div class="card-title"><h2>${metCount} of 6 Standards</h2><span class="hint">the goal of the whole program</span></div>
       <div class="badges">${STANDARDS.map(badge).join('')}</div>
-      <p class="small muted" style="margin:10px 0 0">The book defines each Standard with a specific test. The test text and targets here are editable: check them against your copy and adjust. Strength, Speed and Weight fill in automatically from your base weight, sessions and weigh-ins.</p>
+      <p class="small muted" style="margin:10px 0 0">Tests and targets follow chapter 2 of the book and are editable. Speed and weight fill in from your sessions and weigh-ins; Strength and Leanness targets come from your sex and weigh-ins unless you type one.</p>
     </section>
     ${weightCard(p)}
     ${cards}
@@ -263,7 +265,7 @@ function photosView(tag, compare) {
     <section class="card">
       <div class="card-title"><h2>Add a photo</h2><span class="hint">same spot, same light</span></div>
       <div class="seg compact" style="margin-bottom:10px">${TAGS.map(([v, l], i) => `<button data-new-tag="${v}" class="${i === 0 ? 'on' : ''}">${l}</button>`).join('')}</div>
-      <div class="row"><input type="text" data-new-note placeholder="Note (optional)" style="flex:1;font:inherit;padding:8px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--text);min-height:40px"><button class="btn primary" data-add-photo>${ICONS.camera} Add</button></div>
+      <div class="row"><input type="text" data-new-note placeholder="Note (optional)" style="flex:1"><button class="btn primary" data-add-photo>${ICONS.camera} Add</button></div>
       <p class="small muted" style="margin:10px 0 0">Photos stay on this device and go into your backup file. They never leave the phone unless you export.</p>
     </section>
     ${photos.length ? `<section class="card">
@@ -295,7 +297,7 @@ async function openPhoto(id) {
   const url = await photoURL(`progress:${id}`);
   const sh = sheet(`
     <div class="sheet-head"><div><div class="ex-key">${esc(p.tag)}</div><h2>${fmtDate(p.ts)}</h2>${p.note ? `<p class="muted small" style="margin:4px 0 0">${esc(p.note)}</p>` : ''}</div><button class="close" data-close aria-label="Close">×</button></div>
-    ${url ? `<img src="${url}" alt="" style="width:100%;border-radius:14px;max-height:70vh;object-fit:contain;background:var(--surface)">` : '<p class="empty">Photo missing</p>'}
+    ${url ? `<img src="${url}" alt="" style="width:100%;max-height:70vh;object-fit:contain;background:var(--line-2)">` : '<p class="empty">Photo missing</p>'}
     <div class="btn-row" style="margin-top:12px"><button class="btn danger" data-del>Delete photo</button></div>`);
   $('[data-del]', sh.el).addEventListener('click', async () => {
     if (await confirmSheet({ title: 'Delete this photo?', body: 'It cannot be recovered unless you have a backup.', okLabel: 'Delete', danger: true })) {

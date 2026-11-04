@@ -52,6 +52,7 @@ async function act(a) {
       }
       case 'relax': return session.startRelax();
       case 'relax-done': return session.finishRelax();
+      case 'relax-skip': return session.finishRelax();
       default: return null;
     }
   } catch (e) { toast(e.message || 'Something went wrong', { error: true }); }
@@ -330,7 +331,7 @@ function relaxCard(mode) {
     <div class="head"><div><div class="ex-key">All rounds done</div><h1 class="ex-name">Now relax</h1><div class="ex-meta">${s.timer.relaxMinutes} minutes lying still, then the day is done.</div></div></div>
     <div class="acts">
       <button class="btn primary big block" data-act="relax">Start the relax</button>
-      <div class="btn-row quiet"><button class="btn ghost sm" data-act="relax-done">Skip and finish</button></div>
+      <div class="btn-row quiet"><button class="btn ghost sm" data-act="relax-skip">Skip and finish</button></div>
     </div>
   </section>`;
 }

@@ -15,7 +15,7 @@ export const DEFAULT_SETTINGS = {
   version: 1,
   phase: 'w1',
   base: 3,            // lb per hand in 1:1
-  reps: 6,            // 6 = gain/keep muscle, 3 = lose/maintain (wording to check against the book)
+  reps: 6,            // 6 = gain muscle, 3 = lose muscle or stay the same (book, Learning the Exercises)
   sex: 'f',           // affects the week-7 increment hint only
   levels: Object.fromEntries(EXERCISES.map((e) => [key(e), 5])),
   programStart: null, // ISO date string of day 1
@@ -36,17 +36,26 @@ export const DEFAULT_SETTINGS = {
 // against your copy, except Speed (the ~30-minute session from chapter text).
 export const STANDARDS = [
   { id: 'flex', name: 'Flexibility', kind: 'pass', auto: null,
-    test: 'Full squat with heels flat on the floor and arms straight overhead. Edit this to match the book\'s test.' },
-  { id: 'strength', name: 'Strength', kind: 'number', unit: 'lb per hand', auto: 'base',
-    test: 'The dumbbell weight you complete the whole program with. The book sets the target from your ideal body weight; enter it here.' },
+    test: 'Five tests, each graded poor to excellent. Jerzy squat: feet together, toes curled up, a book on open palms overhead, elbows locked, heels down, no lean; excellent is sitting on your calves. Table: knees locked, back arched, bend forward; excellent is palms flat on the floor. Jackknife: sit, legs straight, toes up, bend forward; excellent is elbows to toes. Bow: lie face down, arch up; excellent is looking straight at the ceiling. Corkscrew: stick behind the neck, twist; excellent is facing the wall that was on your other side.' },
+  { id: 'strength', name: 'Strength', kind: 'number', unit: 'lb per hand', auto: null,
+    test: 'Overhead squat press with two dumbbells. The standard is 58% of body weight for men and 45% for women, split across both hands. Under a quarter of it is poor, to a half fair, to three quarters good, short of the full weight very good, the full weight excellent.' },
   { id: 'speed', name: 'Speed', kind: 'number', unit: 'min', auto: 'session', lowerIsBetter: true, target: 30,
     test: 'Time for the complete cycle, all sequences and rounds. Target: about 30 minutes once fluent.' },
   { id: 'lean', name: 'Leanness', kind: 'number', unit: '% body fat', auto: null, lowerIsBetter: true,
-    test: 'Body fat percentage. Enter the target from the book for your sex.' },
+    test: 'Body fat percentage. The standard is 10% for men and 13% for women. Men: 20 and up is poor, 17 to 19 fair, 14 to 16 good, 11 to 13 very good. Women: 26 and up poor, 22 to 25 fair, 18 to 21 good, 14 to 17 very good.' },
   { id: 'weight', name: 'Ideal body weight', kind: 'number', unit: 'lb', auto: 'weight',
-    test: 'Morning weight. Set your ideal body weight from the book\'s table as the target; aim for about 1% of it per week.' },
+    test: 'Morning weight. Target from Table 2.1: women 104 lb at 5 ft plus 3 lb per inch, men 120 lb at 5 ft plus 5 lb per inch. Move toward it by 1% of the ideal weight a week, then hold within about 2%.' },
   { id: 'posture', name: 'Posture', kind: 'pass', auto: null,
-    test: 'Stand with your back to a wall: heels, calves, glutes, shoulder blades and head all touching, standing tall and relaxed. Edit to match the book\'s test.' },
+    test: 'Stand with your back to a wall, arms raised overhead with elbows locked. Good: heels, buttocks, shoulder blades and back of the head touch the wall. Very good: the backs of the hands too. Excellent: the elbows too.' },
+];
+
+// Earlier placeholder texts. A stored copy that still matches one is replaced by the current default.
+export const OLD_STANDARD_TEXTS = [
+  'Full squat with heels flat on the floor and arms straight overhead. Edit this to match the book\'s test.',
+  'The dumbbell weight you complete the whole program with. The book sets the target from your ideal body weight; enter it here.',
+  'Body fat percentage. Enter the target from the book for your sex.',
+  'Morning weight. Set your ideal body weight from the book\'s table as the target; aim for about 1% of it per week.',
+  'Stand with your back to a wall: heels, calves, glutes, shoulder blades and head all touching, standing tall and relaxed. Edit to match the book\'s test.',
 ];
 
 export const DEFAULT_PROGRESS = {
@@ -56,6 +65,20 @@ export const DEFAULT_PROGRESS = {
   photos: [],     // {id, ts, tag: 'front'|'side'|'back'|'other', note}  (blob under photos store key progress:<id>)
 };
 
+// A target the book fixes from sex and body weight, used when no target was typed.
+// Strength: 58% (men) or 45% (women) of body weight in total, so half per hand.
+// Leanness: 10% body fat for men, 13% for women.
+export function autoTarget(def, settings, progress) {
+  const man = settings.sex === 'm';
+  if (def.id === 'lean') return man ? 10 : 13;
+  if (def.id === 'strength') {
+    const w = progress?.weights?.length ? progress.weights[progress.weights.length - 1].lb : null;
+    if (!w) return null;
+    return round05((w * (man ? 0.58 : 0.45)) / 2);
+  }
+  return null;
+}
+
 // Is a standard met, given a value and target?
 export function standardMet(def, value, target) {
   if (value == null || value === '') return null;
@@ -63,7 +86,7 @@ export function standardMet(def, value, target) {
   if (target == null || target === '') return null;
   const v = Number(value), t = Number(target);
   if (Number.isNaN(v) || Number.isNaN(t)) return null;
-  return def.lowerIsBetter ? v <= t : (def.id === 'weight' ? Math.abs(v - t) <= Math.max(1, t * 0.01) : v >= t);
+  return def.lowerIsBetter ? v <= t : (def.id === 'weight' ? Math.abs(v - t) <= Math.max(1, t * 0.02) : v >= t);
 }
 
 // Latest value per standard from check-ins, with automatic feeds filled in by the caller.

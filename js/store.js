@@ -6,7 +6,7 @@
 // Every change is also stamped into the sync metadata (see merge.js) so that
 // sync.js can push it to the signed-in account and merge back what other devices wrote.
 
-import { DEFAULT_SETTINGS, DEFAULT_PROGRESS } from './program.js';
+import { DEFAULT_SETTINGS, DEFAULT_PROGRESS, OLD_STANDARD_TEXTS } from './program.js';
 import * as merge from './merge.js';
 
 const DB_NAME = 'happybody';
@@ -584,7 +584,12 @@ function normalizeProgress(p) {
   const base = structuredClone(DEFAULT_PROGRESS);
   const out = { ...base, ...p, standards: { ...base.standards } };
   delete out.savedAt;
-  for (const [k, v] of Object.entries(p.standards || {})) if (base.standards[k]) out.standards[k] = { ...base.standards[k], ...v };
+  for (const [k, v] of Object.entries(p.standards || {})) {
+    if (!base.standards[k]) continue;
+    const keep = { ...v };
+    if (OLD_STANDARD_TEXTS.includes(keep.test)) delete keep.test; // placeholder replaced by the book's wording
+    out.standards[k] = { ...base.standards[k], ...keep };
+  }
   for (const list of ['checkins', 'weights', 'photos']) out[list] = Array.isArray(p[list]) ? [...p[list]].sort((a, b) => a.ts - b.ts) : [];
   return out;
 }

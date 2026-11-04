@@ -8,7 +8,7 @@ A daily runner for the exercise program in *The Happy Body* (Aniela and Jerzy Gr
 - **Program.** Phase (week 1 / week 2 / week 3 onward), program start date, base weight for 1:1 with every other weight computed from Tables 8.2 and 8.3 and rounded to the half pound, 6 or 3 reps on lifts, a level (1–5) per exercise, the "sore or stiff this week" flow from the week-2 rule, and a history of changes.
 - **Progress.** Three sub-tabs:
   - *Streak*: 28-day grid, current and best streak, per-day details, clear today.
-  - *Standards*: the six Happy Body Standards (flexibility, strength, speed, leanness, ideal body weight, posture) with a met/not-yet badge each. Strength fills in from your base weight, Speed from your last complete session, Ideal body weight from daily weigh-ins; the others take check-ins. Every test description and target is editable. The default test texts are placeholders to check against the book, except Speed (about 30 minutes). Daily weigh-in with a 90-day trend chart, target line and weekly change.
+  - *Standards*: the six Happy Body Standards (flexibility, strength, speed, leanness, ideal body weight, posture) with a met/not-yet badge each. Speed fills in from your last complete session and Ideal body weight from daily weigh-ins; the others take check-ins. Strength and Leanness targets come from the book's rule (58% or 45% of body weight across both hands; 10% or 13% body fat) unless you type one. Every test description and target is editable. The test texts follow the book's chapter 2, except that the book does not say which grade of the five flexibility tests counts as the standard. Daily weigh-in with a 90-day trend chart, target line and weekly change.
   - *Photos*: dated progress photos tagged front / side / back, a first-vs-latest side-by-side compare with date pickers, and a gallery. Photos are downscaled to 1280 px, stored on the device, and included in backups.
 - **Settings.** Cues, get-ready countdown, auto-start, relax length, keep-awake, theme, account (sign in, last synced, sync now, sign out), backup export/import, erase.
 - **Exercise detail.** Setup, numbered steps with original line drawings, five levels with drawings, tempo, purpose. Any drawing can be replaced with your own photo, stored on the device and included in backups.
@@ -82,8 +82,9 @@ The free plan's built-in email sender is rate limited (a few emails an hour), wh
 
 - Week 1: Sequence 1 × 6 rounds. Week 2: Sequence 1 × 4 then Sequence 2 × 4. Week 3 onward: all three sequences × 3 rounds.
 - Weights: Seq 1 = 100 / 150 / 200 / 150 %, Seq 2 = 50 / 200 / 100 / 150 %, Seq 3 = 150 / 50 / 100 / 150 % of the base, for exercises 1 / 4 / 5 / 6.
-- Exercises 2 and 3 are always 6 reps. 2:4 splits reps between arms, 2:2 alternates sides; the timer announces the side.
-- Soreness: each sore exercise drops a level; at level 1 the base drops 1 lb instead.
+- Lifts (exercises 1, 4, 5, 6): 6 reps to gain muscle, 3 reps to lose muscle or stay the same. Exercises 2 and 3 are always 6 reps. 2:4 splits reps between arms, 2:2 alternates sides; the timer announces the side.
+- Soreness, judged after a week: each sore exercise drops a level; at level 1 the base drops 1 lb instead, repeatable until it stops.
+- Raising weight: once nothing is sore, the dumbbells feel comfortable and a session takes about 30 minutes, men add 2 lb and women 1 lb to the base, and keep doing so until all six Standards are met. Then maintain.
 - Streak day = every slot of the day's plan logged (skips count so the round still completes).
 
 ## Tests
@@ -123,7 +124,7 @@ supabase/setup.sql    one-time backend setup: table, photo bucket, row-level sec
 
 ## Open items from the brief
 
-- Whether week 2 is Seq 1 × 4 then Seq 2 × 4 (as built) or alternating rounds.
-- Rest between rounds, if the book specifies any: there is none built in beyond the get-ready countdown.
-- Later chapters' rules for raising weight beyond the week-7 increments.
-- The reps rule as the book states it. The Program tab says "6 to gain or keep muscle, 3 to lose or maintain", which reads as two overlapping cases; find the exact wording and what 3 reps is for.
+- Which grade of the five flexibility tests counts as meeting the standard, and whether Strength is set from current or ideal body weight (the app uses current).
+- Table 2.1's row values were read from a skewed photo and fitted to the 3 lb and 5 lb per inch rule; worth a second look (`book-notes.md` has the findings).
+
+Checked against the book: the week structure (sequences in blocks, 6 then 4 then 3 rounds), the reps rule, the weight percentages in Tables 8.2 and 8.3, the soreness rule, the weight-increase rule, the 30-minute Speed standard, and rest (chapter 5: rest is the exhale at the end of every rep, with no interval between rounds or sequences; every exercise here ends with a 2-second exhale, and the get-ready countdown is the app's own).
