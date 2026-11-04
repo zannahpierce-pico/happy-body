@@ -42,7 +42,7 @@ Each person (Zannah, Dan) signs in with their own email from **Settings → Acco
 
 The app has to stay a static site on GitHub Pages, so the backend must be callable straight from the browser with a public key, with email sign-in, a document-style store and file storage for photos.
 
-- **Supabase** (chosen): email + password and emailed one-time codes, Postgres with row-level security so each signed-in person can only read and write their own rows, and a private Storage bucket for photos with the same per-person rule. The free plan (500 MB database, 1 GB files, 50,000 monthly users) is far more than two people need: a year of daily workouts is a few MB of rows, and photos are downscaled before storing. Everything is plain HTTPS, so the app talks to it with `fetch` and ships no SDK.
+- **Supabase** (chosen): email + password and emailed sign-in links, Postgres with row-level security so each signed-in person can only read and write their own rows, and a private Storage bucket for photos with the same per-person rule. The free plan (500 MB database, 1 GB files, 50,000 monthly users) is far more than two people need: a year of daily workouts is a few MB of rows, and photos are downscaled before storing. Everything is plain HTTPS, so the app talks to it with `fetch` and ships no SDK.
 - **Firebase** was the alternative. Firestore and Auth would do, but new Cloud Storage buckets now require the pay-as-you-go Blaze plan, so photo sync would mean putting a card on file.
 
 One free-plan catch: Supabase pauses a free project after about a week with no traffic. Daily use keeps it awake; if it does pause, the app keeps working offline and shows "Sync failed" until you press **Restore** in the Supabase dashboard.
@@ -53,11 +53,12 @@ One free-plan catch: Supabase pauses a free project after about a week with no t
 2. **SQL Editor → New query**, paste [`supabase/setup.sql`](supabase/setup.sql), **Run**. It creates the `hb_records` table, the private `hb-photos` bucket, and the row-level security policies. It is safe to run again.
 3. **Project Settings → API Keys**: copy the project URL and the **publishable** key (`sb_publishable_…`, or the legacy `anon` key). Put them in [`js/config.js`](js/config.js). Both are meant to be public; the policies from step 2 are what keep each person to their own data. Never use the `secret` / `service_role` key: the app refuses to run with one.
 4. **Authentication → URL Configuration**: set **Site URL** to `https://zannahpierce-pico.github.io/happy-body/` so links in emails open the app.
-5. **Authentication → Email Templates → Magic Link**: add the line `Your code: {{ .Token }}` so "Email me a sign-in code" sends a code you can type in. (On an iPhone, a home-screen app keeps its own storage, separate from Safari, so the typed code is the way to sign in there without a password; the link in the email signs in Safari only.)
-6. Create the two accounts: either open the app and use **Create account** in Settings, or in **Authentication → Users → Add user** with **Auto Confirm User**. Then, to stop anyone else creating an account in your project, turn off **Authentication → Sign In / Providers → Allow new users to sign up**.
-7. Bump `VERSION` in `sw.js`, commit and push. Installed copies pick it up through the Update banner.
+5. Create the two accounts: either open the app and use **Create account** in Settings, or in **Authentication → Users → Add user** with **Auto Confirm User**. Then, to stop anyone else creating an account in your project, turn off **Authentication → Sign In / Providers → Allow new users to sign up**.
+6. Bump `VERSION` in `sw.js`, commit and push. Installed copies pick it up through the Update banner.
 
-The free plan's built-in email sender is rate limited (a few emails an hour), which is fine for two people. If confirmation emails are a nuisance, create the users in the dashboard with Auto Confirm (step 6).
+The free plan's built-in email sender is rate limited (a few emails an hour), which is fine for two people. If confirmation emails are a nuisance, create the users in the dashboard with Auto Confirm (step 5).
+
+**Email me a sign-in link** (in the sign-in sheet) is the way back in after a forgotten password: open the link on the device you want signed in. On an iPhone the link opens in Safari, which keeps its storage apart from the home-screen app, so the home-screen app needs the password. Supabase's built-in sender uses its default email text; editing it (for example to send a typed code instead) needs your own SMTP service under **Authentication → Emails**.
 
 ### How sync works
 

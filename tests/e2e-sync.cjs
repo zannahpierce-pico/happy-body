@@ -1,5 +1,5 @@
 // Accounts and sync (Playwright) against tests/fake-supabase.cjs: two people, one of
-// them on two devices, offline edits, deletes, photos, sign-in by code, and the
+// them on two devices, offline edits, deletes, photos, sign-in by emailed link, and the
 // app still working signed out and offline from the service worker cache.
 const { chromium, devices } = require('playwright');
 const http = require('http');
@@ -163,20 +163,32 @@ const step = (s) => console.log('·', s);
   await syncNow(laptop);
   assert.ok(await laptop.page.isVisible('[data-signout]'));
 
-  // ── Sign out, then sign in with an emailed code ──
-  step('sign out keeps local data; sign in by code');
+  // ── Sign out, then sign in with an emailed link ──
+  step('sign out keeps local data; sign in by emailed link');
   await laptop.page.click('[data-signout]');
   await laptop.page.click('[data-out=keep]');
   await laptop.page.waitForSelector('[data-signin]');
   assert.equal((await state(laptop)).log.length, 3);
-  await laptop.page.click('[data-signin]');
-  await laptop.page.fill('input[name=email]', 'zannah@example.com');
-  await laptop.page.click('[data-act=code]');
-  await laptop.page.waitForSelector('[data-code-step]:not([hidden])');
-  await laptop.page.fill('input[name=code]', fake.code);
-  await laptop.page.click('[data-act=verify]');
+  const sendLink = async (email) => {
+    await laptop.page.click('[data-signin]');
+    await laptop.page.fill('input[name=email]', email);
+    await laptop.page.click('[data-act=link]');
+    await laptop.page.waitForFunction(() => /^Sent/.test(document.querySelector('[data-msg]')?.textContent || ''));
+    await laptop.page.click('.sheet [data-close]');
+    return fake.link(email);
+  };
+  fake.expireNextLink('zannah@example.com');
+  await laptop.page.goto(await sendLink('zannah@example.com'));
+  await laptop.page.waitForFunction(() => /did not work/.test(document.querySelector('.toast')?.textContent || ''));
+  assert.equal(await laptop.page.evaluate(() => location.hash), '#settings');
+  assert.ok(await laptop.page.isVisible('[data-signin]'), 'an expired link leaves you signed out');
+  const link = await sendLink('zannah@example.com');
+  assert.ok(link.startsWith(base + '#access_token='), 'the link comes back to this page');
+  await laptop.page.goto(link);
   await laptop.page.waitForSelector('[data-signout]');
+  assert.equal(await laptop.page.evaluate(() => location.hash), '#settings', 'tokens are cleared from the address');
   await settled(laptop);
+  assert.equal((await state(laptop)).log.length, 3);
 
   step('another account on the same device: erase choice');
   await laptop.page.click('[data-signout]'); await laptop.page.click('[data-out=keep]');
