@@ -4,8 +4,11 @@ import { sync } from '../sync.js';
 import { esc, on, $, toast, sheet, confirmSheet, fmtClock, fmtDate } from '../ui.js';
 import * as audio from '../audio.js';
 
+let audioLog = '';
+
 export function render(main) {
-  const draw = () => { main.innerHTML = view(); fillEstimate(main); };
+  const showLog = () => { const o = $('[data-audio-log]', main); if (o && audioLog) { o.hidden = false; o.textContent = audioLog; } };
+  const draw = () => { main.innerHTML = view(); fillEstimate(main); showLog(); };
   draw();
   const unsub = store.subscribe((what) => { if (what === 'settings' || what === 'import' || what === 'status' || what === 'photos') draw(); });
   const unsubSync = sync.subscribe(draw);
@@ -22,9 +25,10 @@ export function render(main) {
     if (path === 'theme') applyTheme(val);
   });
   on(main, 'click', '[data-test-audio]', () => {
-    audio.unlock(); audio.configure(store.settings.timer);
-    audio.cue('in'); setTimeout(() => audio.cue('move'), 500); setTimeout(() => audio.cue('repEnd'), 1000);
-    audio.say('Inhale. Lift. Exhale.');
+    audio.configure(store.settings.timer);
+    audio.unlock({ prime: false });
+    audioLog = '';
+    audio.diagnose((line) => { audioLog += (audioLog ? '\n' : '') + line; showLog(); });
   });
   on(main, 'click', '[data-export]', exportFlow);
   on(main, 'click', '[data-import]', importFlow);
@@ -65,6 +69,7 @@ function view() {
   return `<div class="stack">
     <section class="card">
       <div class="card-title"><h2>Timer</h2><button class="btn sm" data-test-audio>Test cues</button></div>
+      <pre class="audio-log small muted" data-audio-log hidden></pre>
       <div class="row"><span class="label">Sound cues<span class="small muted">a different tone per phase, a chime per rep</span></span>${sw('timer.sound', t.sound !== false)}</div>
       <div class="row"><span class="label">Spoken phases<span class="small muted">"Inhale", "Lift", "Exhale"…</span></span>${sw('timer.voice', t.voice !== false)}</div>
       <div class="row"><span class="label">Get-ready countdown<span class="small muted">time to pick up the right dumbbells</span></span>

@@ -69,7 +69,7 @@ class Session {
   stopTimer() {
     if (this.timer) { this.timer.stop(); this.timer = null; }
     this.tstate = null;
-    audio.hush();
+    audio.release();
     keepAwake(false);
   }
 
@@ -80,17 +80,20 @@ class Session {
   async start({ skipReady = false } = {}) {
     const e = this.exercise;
     if (!e) return;
-    audio.unlock();
-    this.configureAudio();
-    await this.touchStart();
+    // Everything audible happens before the first await, so iOS still counts it
+    // as part of the tap.
     this.stopTimer();
-    if (this.settings.timer.keepAwake !== false) keepAwake(true);
+    this.configureAudio();
     const ready = skipReady ? 0 : (this.settings.timer.getReady || 0);
+    audio.unlock({ prime: !(ready > 0) });
+    if (ready > 0) {
+      const w = weightFor(e, this.settings.base);
+      audio.say(`Next: ${e.name}. ${w != null ? weightLabel(e, this.settings.base).replace('lb', 'pounds') + '.' : 'No weight.'} ${repsFor(e, this.settings)} reps.`);
+    }
+    await this.touchStart();
+    if (this.settings.timer.keepAwake !== false) keepAwake(true);
     if (ready > 0) {
       this.mode = 'ready';
-      const reps = repsFor(e, this.settings);
-      const w = weightFor(e, this.settings.base);
-      audio.say(`Next: ${e.name}. ${w != null ? weightLabel(e, this.settings.base).replace('lb', 'pounds') + '.' : 'No weight.'} ${reps} reps.`);
       let lastSec = null;
       this.timer = countdown(ready, 'Get ready', {
         onUpdate: (s) => {
@@ -151,13 +154,15 @@ class Session {
   pause() {
     if (this.mode !== 'running' && this.mode !== 'ready') return;
     this.timer?.pause();
-    audio.hush();
+    audio.release(0);
+    keepAwake(false);
     this.mode = this.mode === 'ready' ? 'ready-paused' : 'paused';
     this.emit('state');
   }
   resume() {
     if (!this.timer) return;
-    audio.unlock();
+    audio.unlock({ prime: false });
+    if (this.settings.timer.keepAwake !== false) keepAwake(true);
     this.timer.resume();
     this.mode = this.mode === 'ready-paused' ? 'ready' : 'running';
     this.emit('state');
