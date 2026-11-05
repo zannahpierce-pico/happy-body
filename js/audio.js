@@ -11,9 +11,11 @@ let voice = null;
 
 const synth = () => ('speechSynthesis' in window ? window.speechSynthesis : null);
 
-export function configure({ sound, voice: v }) {
+export function configure({ sound, voice: v } = {}) {
   soundEnabled = sound !== false;
+  const wasOn = voiceEnabled;
   voiceEnabled = v !== false;
+  if (wasOn && !voiceEnabled) hush();   // stop anything already queued or speaking
 }
 
 function pickVoice() {

@@ -16,6 +16,8 @@ class Session {
     this.listeners = new Set();
     this.day = today();
     store.subscribe((what) => {
+      // Cue and keep-awake switches take effect at once, even mid-timer.
+      if (what === 'settings' || what === 'import') this.applyTimerSettings();
       if (what === 'log' || what === 'settings' || what === 'import' || what === 'today') this.refresh();
     });
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') this.rollDay(); });
@@ -74,6 +76,12 @@ class Session {
   }
 
   configureAudio() { audio.configure(this.settings.timer); }
+
+  applyTimerSettings() {
+    this.configureAudio();
+    const active = this.mode === 'running' || this.mode === 'ready' || this.mode === 'relax';
+    if (active) keepAwake(this.settings.timer.keepAwake !== false);
+  }
 
   // ── Actions ──
   // Start the current exercise: optional get-ready countdown, then the tempo timer.
