@@ -143,7 +143,7 @@ function timerPanel(pos, mode) {
     body = ring(`k-${t.kind}`, `
       <div class="phase" data-phase>${esc(t.label)}</div>
       <div class="count" data-count>${t.remaining}</div>
-      <div class="rep" data-rep>${repLine(e, t, reps)}</div>`, t.phaseProgress, t.phaseSeconds)
+      <div class="rep" data-rep>${repLine(e, t, reps)}</div>`, t.repProgress, t.phaseSeconds)
       + `<div class="rep-dots ${reps > 6 ? 'many' : ''}" data-dots>${Array.from({ length: reps }, (_, i) => `<i class="${i + 1 < t.rep ? 'done' : i + 1 === t.rep ? 'cur' : ''}">${i + 1}</i>`).join('')}</div>`
       + track(e, t);
   } else {
@@ -228,7 +228,8 @@ function tick(main, t) {
   if (mode === 'relax') { if (count) count.textContent = fmtTime(Math.max(0, (1 - t.phaseProgress) * t.phaseSeconds * 1000)); return; }
   if (count && count.textContent !== String(t.remaining)) count.textContent = t.remaining;
   const arc = $('[data-arc]', main);
-  if (arc) arc.setAttribute('stroke-dashoffset', Math.round(RING_C * (1 - t.phaseProgress) * 100) / 100);
+  // One full turn per rep (the count shows the phase). The ready countdown is a single phase.
+  if (arc) arc.setAttribute('stroke-dashoffset', Math.round(RING_C * (1 - t.repProgress) * 100) / 100);
   if (mode === 'ready' || mode === 'ready-paused') return;
   const e = session.exercise;
   if (!e) return;

@@ -18,7 +18,9 @@ export async function keepAwake(on) {
   wanted = !!on;
   if (wanted) {
     await acquire();
-    keepAwakeAudio(true);      // iOS fallback: silent loop keeps the audio session alive
+    // Fallback only: a playing <audio> element changes the iOS audio session and
+    // can silence speech, so skip it when the Wake Lock API worked.
+    if (!lock) keepAwakeAudio(true);
   } else {
     try { await lock?.release(); } catch { /* ignore */ }
     lock = null;
@@ -27,5 +29,7 @@ export async function keepAwake(on) {
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && wanted) acquire();
+  // Back in the app with a timer still running: take the screen lock again (the
+  // audio fallback stopped when the page was hidden).
+  if (document.visibilityState === 'visible' && wanted) acquire().then(() => { if (wanted && !lock) keepAwakeAudio(true); });
 });
