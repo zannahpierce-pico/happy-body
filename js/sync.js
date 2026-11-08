@@ -231,15 +231,18 @@ class Sync {
     }
     const res = await store.applyRemote(rows.map((r) => ({ ...r, updated_at: Number(r.updated_at) })));
     const uid = this.user.id;
-    for (const f of res.fetch) {
-      const path = f.data?.path;
-      if (typeof path !== 'string' || !path.startsWith(`${uid}/`)) continue;
-      try {
-        const r = await this.req(`/storage/v1/object/authenticated/${BUCKET}/${path}`, { raw: true });
-        const blob = await r.blob();
-        await store.putSyncedPhoto(f.id, f.data.type ? new Blob([blob], { type: f.data.type }) : blob, f.updated_at);
-      } catch (e) { if (e.network) throw e; console.warn('photo download failed', f.id, e); }
-    }
+    // Download photo files a few at a time; a fresh device may need well over a hundred.
+    const queue = res.fetch.filter((f) => typeof f.data?.path === 'string' && f.data.path.startsWith(`${uid}/`));
+    const worker = async () => {
+      for (let f; (f = queue.shift());) {
+        try {
+          const r = await this.req(`/storage/v1/object/authenticated/${BUCKET}/${f.data.path}`, { raw: true });
+          const blob = await r.blob();
+          await store.putSyncedPhoto(f.id, f.data.type ? new Blob([blob], { type: f.data.type }) : blob, f.updated_at);
+        } catch (e) { if (e.network) { queue.length = 0; throw e; } console.warn('photo download failed', f.id, e); }
+      }
+    };
+    await Promise.all(Array.from({ length: 4 }, worker));
     for (const r of res.remove) await store.removeSyncedPhoto(r.id, r.updated_at);
     store.setSyncDone(rows.reduce((m, r) => Math.max(m, Number(r.synced_at) || 0), 0));
   }
@@ -261,22 +264,30 @@ class Sync {
       store.ackPushed(batch);
     }
     // Photo files: upload (or remove) the file, then the record that points at it.
+    // Four at a time: an import can leave well over a hundred to upload.
     const uid = this.user.id;
-    for (const p of store.pendingPhotos()) {
+    const queue = store.pendingPhotos();
+    const one = async (p) => {
       const path = `${uid}/${objectName(p.id)}`;
       let type = null;
       if (p.deleted) {
         await this.req(`/storage/v1/object/${BUCKET}`, { method: 'DELETE', json: { prefixes: [path] } });
       } else {
         const ph = await store.getPhoto(p.id);
-        if (!ph?.blob) { store.ackPushed([{ kind: 'blob', id: p.id, updated_at: p.updated_at }]); continue; }
+        if (!ph?.blob) { store.ackPushed([{ kind: 'blob', id: p.id, updated_at: p.updated_at }]); return; }
         type = ph.type || ph.blob.type || 'image/jpeg';
         await this.req(`/storage/v1/object/${BUCKET}/${path}`, { method: 'POST', headers: { 'content-type': type, 'x-upsert': 'true', 'cache-control': 'max-age=0' }, body: ph.blob });
       }
       const row = { kind: 'blob', id: p.id, data: p.deleted ? null : { path, type }, deleted: p.deleted, updated_at: p.updated_at };
       await this.upsert([row]);
       store.ackPushed([row]);
-    }
+    };
+    const worker = async () => {
+      for (let p; (p = queue.shift());) {
+        try { await one(p); } catch (e) { queue.length = 0; throw e; }
+      }
+    };
+    await Promise.all(Array.from({ length: 4 }, worker));
   }
 }
 
