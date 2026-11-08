@@ -170,7 +170,7 @@ main { padding-bottom: 16px; }
 .timer .hero { width: 88px; height: 88px; flex-shrink: 0; color: var(--ink); background: transparent; border: 0; padding: 0; cursor: pointer; }
 .timer.compact .hero { width: 68px; height: 68px; }
 .timer .hero svg { width: 100%; height: 100%; }
-.timer .hero img { width: 100%; height: 100%; object-fit: cover; }
+.timer .hero img { width: 100%; height: 100%; object-fit: contain; }
 .timer .acts { margin-top: 14px; }
 
 /* Tempo strip: one block per phase, width by seconds */
@@ -241,7 +241,7 @@ main { padding-bottom: 16px; }
 .ex-row:last-child { border-bottom: 1px solid var(--line); }
 .ex-row .fig { width: 40px; height: 40px; flex-shrink: 0; color: var(--ink); display: grid; place-items: center; }
 .ex-row .fig svg { width: 100%; height: 100%; }
-.ex-row .fig img { width: 100%; height: 100%; object-fit: cover; }
+.ex-row .fig img { width: 40px; height: 40px; object-fit: contain; }
 .ex-row .fig .mark { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; }
 .ex-row .fig .mark svg { width: 14px; height: 14px; stroke-width: 3; }
 .ex-row.done { color: var(--muted); }
@@ -313,9 +313,7 @@ table.weights .w { font-weight: 700; white-space: nowrap; }
 .step { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: start; }
 .step .img { position: relative; width: 96px; height: 96px; border: 1px solid var(--line); color: var(--ink); padding: 4px; }
 .step .img svg { width: 100%; height: 100%; }
-.step .img img { width: 100%; height: 100%; object-fit: cover; }
-.step .img .cam { position: absolute; right: -8px; bottom: -8px; width: 30px; height: 30px; border-radius: 50%; border: 0; background: var(--ink); color: var(--bg); display: grid; place-items: center; cursor: pointer; }
-.step .img .cam svg { width: 16px; height: 16px; }
+.step .img img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; }
 .step .txt::before { counter-increment: s; content: counter(s); display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--ink); font-family: var(--display); font-size: 14px; font-weight: 700; margin-right: 8px; vertical-align: 1px; }
 .step .txt { font-size: 15px; }
 
@@ -323,14 +321,19 @@ table.weights .w { font-weight: 700; white-space: nowrap; }
 .level { display: grid; grid-template-columns: 64px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); cursor: pointer; }
 .level .img { width: 64px; height: 64px; color: var(--ink); padding: 3px; position: relative; }
 .level .img svg { width: 100%; height: 100%; }
-.level .img img { width: 100%; height: 100%; object-fit: cover; }
-.level .img .cam { position: absolute; right: -5px; bottom: -5px; width: 24px; height: 24px; border-radius: 50%; border: 0; background: var(--ink); color: var(--bg); display: grid; place-items: center; cursor: pointer; }
-.level .img .cam svg { width: 13px; height: 13px; }
+.level .img img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; }
 .level .t { font-size: 14px; }
 .level .t b { display: block; font-size: 13px; color: var(--muted); font-weight: 600; }
 .level.on .t b { color: var(--accent); }
 .level .radio { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line); }
 .level.on .radio { border: 2px solid var(--accent); box-shadow: inset 0 0 0 4px var(--bg); background: var(--accent); }
+
+/* Full-screen photo viewer: tap to zoom in, scroll to pan, × to close */
+.book-btn { margin-top: 8px; border: 1.5px solid var(--ink); background: transparent; color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; padding: 6px 12px; cursor: pointer; }
+.viewer { position: fixed; inset: 0; z-index: 60; background: #000; overflow: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; animation: fade .15s ease; }
+.viewer img { display: block; width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; }
+.viewer.zoomed img { width: 250%; height: auto; max-width: none; object-fit: initial; cursor: zoom-out; }
+.viewer .close { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 12px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(255, 255, 255, 0.9); color: #000; font-size: 22px; line-height: 1; cursor: pointer; }
 
 /* Toast */
 .toast { position: fixed; left: 50%; bottom: calc(var(--nav-h) + 14px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; font-weight: 600; font-size: 14px; z-index: 60; animation: fade .15s; max-width: 92vw; text-align: center; }

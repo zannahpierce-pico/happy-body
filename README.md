@@ -11,7 +11,7 @@ A daily runner for the exercise program in *The Happy Body* (Aniela and Jerzy Gr
   - *Standards*: the six Happy Body Standards (flexibility, strength, speed, leanness, ideal body weight, posture) with a met/not-yet badge each. Speed fills in from your last complete session and Ideal body weight from daily weigh-ins; the others take check-ins. Strength and Leanness targets come from the book's rule (58% or 45% of body weight across both hands; 10% or 13% body fat) unless you type one. Every test description and target is editable. The test texts follow the book's chapter 2, except that the book does not say which grade of the five flexibility tests counts as the standard. Daily weigh-in with a 90-day trend chart, target line and weekly change.
   - *Photos*: dated progress photos tagged front / side / back, a first-vs-latest side-by-side compare with date pickers, and a gallery. Photos are downscaled to 1280 px, stored on the device, and included in backups.
 - **Settings.** Cues, get-ready countdown, auto-start, relax length, keep-awake, theme, account (sign in, last synced, sync now, sign out), backup export/import, erase.
-- **Exercise detail.** Setup, numbered steps with original line drawings, five levels with drawings, tempo, purpose. Any drawing can be replaced with your own photo, stored on the device and included in backups.
+- **Exercise detail.** Setup, numbered steps, five levels, tempo, purpose. Steps and levels show the book's photos once they have been imported (see below), or original line drawings until then. Tap a photo to see it full screen; **Book page** shows the whole page, with tap to zoom.
 
 ## Hosting and installing on an iPhone
 
@@ -33,6 +33,10 @@ python3 -m http.server 8080
 ## Releasing a change
 
 Every file is precached by the service worker. After changing anything, bump `VERSION` in `sw.js` (for example `hb-v1.0.1`). Installed copies then show an "Update" banner on next launch.
+
+## Book photos
+
+The book's photos are copyrighted, and this repository and its Pages site are public, so they are not part of the app. They are loaded per person instead: a backup-format file holding one cropped photo per step and level (photo keys `seq:n:step:i` and `seq:n:level:i`) plus the whole page (`seq:n:page:0`). Import it once with **Settings → Backup → Import → Merge** while signed in; sync copies the photos to your private storage and your other devices pick them up with **Sync now**. Keep the file out of the repository (`reference/` is ignored).
 
 ## Accounts and sync
 
