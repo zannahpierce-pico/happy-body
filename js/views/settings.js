@@ -10,7 +10,20 @@ export function render(main) {
   const showLog = () => { const o = $('[data-audio-log]', main); if (o && audioLog) { o.hidden = false; o.textContent = audioLog; } };
   const draw = () => { main.innerHTML = view(); fillEstimate(main); showLog(); };
   draw();
-  const unsub = store.subscribe((what) => { if (what === 'settings' || what === 'import' || what === 'status' || what === 'photos') draw(); });
+  // Saves and photo arrivals only touch the save line and the storage figure, so
+  // update those in place: a full redraw on each of them made the page flicker
+  // while sync downloaded photos one by one, and could drop a file being picked.
+  let estTimer = null;
+  const refresh = () => {
+    const h = $('[data-save-hint]', main);
+    if (h) h.innerHTML = saveHint();
+    clearTimeout(estTimer);
+    estTimer = setTimeout(() => fillEstimate(main), 400);
+  };
+  const unsub = store.subscribe((what) => {
+    if (what === 'settings' || what === 'import') draw();
+    else if (what === 'status' || what === 'photos') refresh();
+  });
   const unsubSync = sync.subscribe(draw);
 
   on(main, 'click', '[data-toggle]', async (ev, b) => {
@@ -44,7 +57,7 @@ export function render(main) {
   on(main, 'click', '[data-signin]', signInFlow);
   on(main, 'click', '[data-signout]', signOutFlow);
   on(main, 'click', '[data-sync-now]', () => sync.syncNow());
-  return () => { unsub(); unsubSync(); };
+  return () => { unsub(); unsubSync(); clearTimeout(estTimer); };
 }
 
 const get = (o, p) => p.split('.').reduce((a, k) => a?.[k], o);
@@ -62,12 +75,16 @@ export function applyTheme(theme) {
 
 const sw = (path, on_) => `<button class="switch ${on_ ? 'on' : ''}" role="switch" aria-checked="${on_}" data-toggle="${path}"></button>`;
 
-function view() {
-  const s = store.settings;
-  const t = s.timer;
+function saveHint() {
   const st = store.status;
   const dotCls = st.error ? 'err' : st.pending ? 'pending' : '';
   const saved = st.error ? `Save failed: ${esc(st.error)}` : st.pending ? 'Saving…' : st.lastSaved ? `Saved ${fmtClock(st.lastSaved)}` : 'Nothing to save yet';
+  return `<span class="save-dot ${dotCls}"></span>${saved}`;
+}
+
+function view() {
+  const s = store.settings;
+  const t = s.timer;
   return `<div class="stack">
     <section class="card">
       <div class="card-title"><h2>Timer</h2><button class="btn sm" data-test-audio>Test cues</button></div>
@@ -90,7 +107,7 @@ function view() {
     ${accountCard()}
 
     <section class="card">
-      <div class="card-title"><h2>Backup</h2><span class="hint"><span class="save-dot ${dotCls}"></span>${saved}</span></div>
+      <div class="card-title"><h2>Backup</h2><span class="hint" data-save-hint>${saveHint()}</span></div>
       <p class="small muted">Everything lives on this device: ${store.mode === 'idb' ? 'IndexedDB with a localStorage mirror' : 'localStorage only (IndexedDB is unavailable here)'}${sync.user ? ', with a copy in your account' : ''}. Export a file now and then, and before reinstalling. Photos are included.</p>
       <div class="btn-row">
         <button class="btn primary" data-export>Export backup</button>
