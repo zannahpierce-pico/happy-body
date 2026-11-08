@@ -264,22 +264,30 @@ class Sync {
       store.ackPushed(batch);
     }
     // Photo files: upload (or remove) the file, then the record that points at it.
+    // Four at a time: an import can leave well over a hundred to upload.
     const uid = this.user.id;
-    for (const p of store.pendingPhotos()) {
+    const queue = store.pendingPhotos();
+    const one = async (p) => {
       const path = `${uid}/${objectName(p.id)}`;
       let type = null;
       if (p.deleted) {
         await this.req(`/storage/v1/object/${BUCKET}`, { method: 'DELETE', json: { prefixes: [path] } });
       } else {
         const ph = await store.getPhoto(p.id);
-        if (!ph?.blob) { store.ackPushed([{ kind: 'blob', id: p.id, updated_at: p.updated_at }]); continue; }
+        if (!ph?.blob) { store.ackPushed([{ kind: 'blob', id: p.id, updated_at: p.updated_at }]); return; }
         type = ph.type || ph.blob.type || 'image/jpeg';
         await this.req(`/storage/v1/object/${BUCKET}/${path}`, { method: 'POST', headers: { 'content-type': type, 'x-upsert': 'true', 'cache-control': 'max-age=0' }, body: ph.blob });
       }
       const row = { kind: 'blob', id: p.id, data: p.deleted ? null : { path, type }, deleted: p.deleted, updated_at: p.updated_at };
       await this.upsert([row]);
       store.ackPushed([row]);
-    }
+    };
+    const worker = async () => {
+      for (let p; (p = queue.shift());) {
+        try { await one(p); } catch (e) { queue.length = 0; throw e; }
+      }
+    };
+    await Promise.all(Array.from({ length: 4 }, worker));
   }
 }
 
