@@ -4,8 +4,8 @@ import { key as keyOf } from '../data/exercises.js';
 import { weightLabel, repsLabel } from '../program.js';
 import { repSeconds } from '../data/exercises.js';
 import { stepImages, levelImages } from '../figure.js';
-import { photoKey, photoURL, replacePhoto } from '../photos.js';
-import { sheet, esc, on, $, $$, toast, confirmSheet, ICONS } from '../ui.js';
+import { photoKey, pageKey, photoURL } from '../photos.js';
+import { sheet, esc, on, $, $$, toast } from '../ui.js';
 
 export function tempoChips(e) {
   return `<div class="tempo-chips">${e.phases.map((p) => `<span class="chip k-${p[2]}">${esc(p[0])} <b>${p[1]}s</b></span>`).join('')}<span class="chip">${repSeconds(e)}s per rep</span></div>`;
@@ -16,7 +16,6 @@ export async function openExercise(e) {
   const s = store.settings;
   const steps = stepImages(e.images);
   const levels = levelImages(e.images);
-  const camBtn = (pk) => `<button class="cam" data-photo="${pk}" aria-label="Replace with my photo">${ICONS.camera}</button>`;
 
   const html = `
     <div class="sheet-head">
@@ -24,6 +23,7 @@ export async function openExercise(e) {
         <div class="ex-key">${k} · Sequence ${e.seq}</div>
         <h2 style="font-size:24px">${esc(e.name)}</h2>
         <div class="muted small">${esc(weightLabel(e, s.base))} · ${esc(repsLabel(e, s))} · Level <span data-lv-now>${s.levels[k] || 5}</span></div>
+        <button class="book-btn" data-book hidden>Book page</button>
       </div>
       <button class="close" data-close aria-label="Close">×</button>
     </div>
@@ -33,11 +33,11 @@ export async function openExercise(e) {
         <p style="margin:6px 0 0">${esc(e.setup)}</p>
       </section>
       <section>
-        <div class="card-title"><h3>Steps</h3><span class="hint">Tap the camera to use your own photo</span></div>
+        <div class="card-title"><h3>Steps</h3></div>
         <div class="steps">
           ${e.steps.map((t, i) => `
             <div class="step">
-              <div class="img" data-img="${photoKey(k, 'step', i)}">${steps[i] || ''}${camBtn(photoKey(k, 'step', i))}</div>
+              <div class="img" data-img="${photoKey(k, 'step', i)}">${steps[i] || ''}</div>
               <div class="txt">${esc(t)}</div>
             </div>`).join('')}
         </div>
@@ -51,7 +51,7 @@ export async function openExercise(e) {
         <div class="levels">
           ${e.levels.map((t, i) => `
             <div class="level ${(s.levels[k] || 5) === i + 1 ? 'on' : ''}" data-level="${i + 1}" role="radio" aria-checked="${(s.levels[k] || 5) === i + 1}">
-              <div class="img" data-img="${photoKey(k, 'level', i)}">${levels[i] || ''}${camBtn(photoKey(k, 'level', i))}</div>
+              <div class="img" data-img="${photoKey(k, 'level', i)}">${levels[i] || ''}</div>
               <div class="t"><b>Level ${i + 1}</b>${esc(t)}</div>
               <span class="radio"></span>
             </div>`).join('')}
@@ -74,28 +74,23 @@ export async function openExercise(e) {
       if (url) {
         const img = document.createElement('img'); img.src = url; img.alt = '';
         if (old) old.replaceWith(img); else box.prepend(img);
-        if (!$('.rm', box)) {
-          const rm = document.createElement('button'); rm.className = 'cam rm'; rm.style.right = 'auto'; rm.style.left = '-6px'; rm.style.background = 'var(--red)';
-          rm.dataset.rmPhoto = box.dataset.img; rm.setAttribute('aria-label', 'Remove photo'); rm.textContent = '×';
-          box.appendChild(rm);
-        }
       }
     }
   }
   loadPhotos();
 
-  on(root, 'click', '[data-photo]', async (ev, btn) => {
-    ev.stopPropagation();
-    try {
-      if (await replacePhoto(btn.dataset.photo)) { toast('Photo saved'); rebuild(); }
-    } catch (err) { toast(err.message || 'Could not save photo', { error: true }); }
+  // The whole book page for this exercise, if one has been imported.
+  photoURL(pageKey(k)).then((url) => {
+    const b = $('[data-book]', root);
+    if (url && b) { b.hidden = false; b.addEventListener('click', () => viewPhoto(url, `${e.name}, book page`)); }
   });
-  on(root, 'click', '[data-rm-photo]', async (ev, btn) => {
-    ev.stopPropagation();
-    if (await confirmSheet({ title: 'Remove photo?', body: 'The drawing will be shown again.', okLabel: 'Remove', danger: true })) {
-      await store.deletePhoto(btn.dataset.rmPhoto); toast('Photo removed'); rebuild();
-    }
+
+  // Tap a photo to see it full screen.
+  on(root, 'click', '[data-img] img', (ev, img) => {
+    ev.stopImmediatePropagation(); // don't also pick the level
+    viewPhoto(img.src);
   });
+
   on(root, 'click', '[data-level]', async (ev, el) => {
     const lv = Number(el.dataset.level);
     const prev = store.settings.levels[k] || 5;
@@ -106,6 +101,35 @@ export async function openExercise(e) {
     toast(`${e.name}: level ${lv}`);
   });
 
-  function rebuild() { sh.close(); openExercise(e); }
   return sh;
+}
+
+// Full-screen photo: tap to zoom in on that spot, scroll to pan, tap again to fit.
+function viewPhoto(url, alt = '') {
+  const v = document.createElement('div');
+  v.className = 'viewer';
+  v.setAttribute('role', 'dialog');
+  v.setAttribute('aria-modal', 'true');
+  v.innerHTML = `<img alt="${esc(alt)}"><button class="close" aria-label="Close">×</button>`;
+  const img = $('img', v);
+  img.src = url;
+  const close = () => { v.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = (ev) => { if (ev.key === 'Escape') close(); };
+  $('.close', v).addEventListener('click', close);
+  img.addEventListener('click', (ev) => {
+    // Where the tap lands on the picture itself (it is letterboxed while fitted).
+    const r = img.getBoundingClientRect();
+    const k = Math.min(r.width / img.naturalWidth, r.height / img.naturalHeight);
+    const w = img.naturalWidth * k, h = img.naturalHeight * k;
+    const clamp = (x) => Math.min(1, Math.max(0, x));
+    const fx = clamp((ev.clientX - r.left - (r.width - w) / 2) / w);
+    const fy = clamp((ev.clientY - r.top - (r.height - h) / 2) / h);
+    const zoomed = v.classList.toggle('zoomed');
+    if (!zoomed) return;
+    const z = img.getBoundingClientRect();
+    v.scrollLeft = fx * z.width - v.clientWidth / 2;
+    v.scrollTop = fy * z.height - v.clientHeight / 2;
+  });
+  document.addEventListener('keydown', onKey);
+  document.body.appendChild(v);
 }
