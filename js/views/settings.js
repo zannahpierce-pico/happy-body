@@ -31,7 +31,9 @@ export function render(main) {
     audio.diagnose((line) => { audioLog += (audioLog ? '\n' : '') + line; showLog(); });
   });
   on(main, 'click', '[data-export]', exportFlow);
-  on(main, 'click', '[data-import]', importFlow);
+  // The Import button is a <label> around the file input, so the tap itself opens
+  // the picker (some browsers ignore a scripted click on a hidden input).
+  on(main, 'change', '[data-import-file]', (ev, input) => { const f = input.files?.[0]; input.value = ''; importFile(f); });
   on(main, 'click', '[data-wipe]', async () => {
     const account = sync.user ? ' You will also be signed out; your account keeps its copy.' : '';
     if (await confirmSheet({ title: 'Erase everything?', body: `Settings, the whole log, history and photos on this device. Export a backup first if you want to keep anything. This cannot be undone.${account}`, okLabel: 'Erase all data', danger: true })) {
@@ -92,7 +94,7 @@ function view() {
       <p class="small muted">Everything lives on this device: ${store.mode === 'idb' ? 'IndexedDB with a localStorage mirror' : 'localStorage only (IndexedDB is unavailable here)'}${sync.user ? ', with a copy in your account' : ''}. Export a file now and then, and before reinstalling. Photos are included.</p>
       <div class="btn-row">
         <button class="btn primary" data-export>Export backup</button>
-        <button class="btn" data-import>Import</button>
+        <label class="btn file-btn">Import<input type="file" accept=".json,application/json" data-import-file></label>
       </div>
       <div class="divider"></div>
       <div class="row"><span class="label small">Log entries</span><span class="tnum">${store.log.length}</span></div>
@@ -235,26 +237,20 @@ async function exportFlow() {
   } catch (e) { toast(e.message || 'Export failed', { error: true }); }
 }
 
-function importFlow() {
-  const input = document.createElement('input');
-  input.type = 'file'; input.accept = 'application/json,.json'; input.style.display = 'none';
-  document.body.appendChild(input);
-  input.addEventListener('change', async () => {
-    const f = input.files?.[0]; input.remove();
-    if (!f) return;
-    let data;
-    try { data = JSON.parse(await f.text()); } catch { toast('That file is not valid JSON', { error: true }); return; }
-    if (data?.app !== 'happy-body') { toast('Not a Happy Body backup', { error: true }); return; }
-    const sh = sheet(`
-      <div class="sheet-head"><div><h2>Import backup</h2><p class="muted small" style="margin:4px 0 0">${(data.log || []).length} log entries · exported ${esc((data.exportedAt || '').slice(0, 10))}</p></div><button class="close" data-close aria-label="Close">×</button></div>
-      <p class="small">Merge adds entries and photos that are missing here and keeps your current settings. Replace wipes this device first and restores the file exactly.</p>
-      <div class="btn-row"><button class="btn primary" data-mode="merge">Merge</button><button class="btn danger" data-mode="replace">Replace</button></div>`);
-    on(sh.el, 'click', '[data-mode]', async (ev, b) => {
-      try { await store.importData(data, b.dataset.mode); sh.close(); toast('Imported'); applyTheme(store.settings.theme); }
-      catch (e) { toast(e.message || 'Import failed', { error: true }); }
-    });
+async function importFile(f) {
+  if (!f) return;
+  let data;
+  try { data = JSON.parse(await f.text()); } catch { toast('That file is not valid JSON', { error: true }); return; }
+  if (data?.app !== 'happy-body') { toast('Not a Happy Body backup', { error: true }); return; }
+  const nPhotos = Object.keys(data.photos || {}).length;
+  const sh = sheet(`
+    <div class="sheet-head"><div><h2>Import backup</h2><p class="muted small" style="margin:4px 0 0">${nPhotos} photos · ${(data.log || []).length} log entries · exported ${esc((data.exportedAt || '').slice(0, 10))}</p></div><button class="close" data-close aria-label="Close">×</button></div>
+    <p class="small">Merge adds entries and photos that are missing here and keeps your current settings. Replace wipes this device first and restores the file exactly.</p>
+    <div class="btn-row"><button class="btn primary" data-mode="merge">Merge</button><button class="btn danger" data-mode="replace">Replace</button></div>`);
+  on(sh.el, 'click', '[data-mode]', async (ev, b) => {
+    try { await store.importData(data, b.dataset.mode); sh.close(); toast(nPhotos ? `Imported ${nPhotos} photos` : 'Imported'); applyTheme(store.settings.theme); }
+    catch (e) { toast(e.message || 'Import failed', { error: true }); }
   });
-  input.click();
 }
 
 async function fillEstimate(main) {
