@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Figure contact sheet</title>
+<link rel="stylesheet" href="../css/app.css">
+<style>
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--ink); font: 13px/1.35 system-ui, sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .note { color: var(--muted); margin: 0 0 16px; }
+  section { border-top: 1px solid var(--line); padding: 12px 0 16px; }
+  section h2 { font-size: 15px; margin: 0 0 8px; }
+  section h2 code { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 10px 14px; }
+  figure { margin: 0; width: 150px; }
+  .pair { display: flex; align-items: flex-end; gap: 8px; }
+  .s40 { width: 40px; height: 40px; }
+  .s96 { width: 96px; height: 96px; }
+  .s40 svg, .s96 svg { width: 100%; height: 100%; }
+  .s96 { outline: 1px dashed var(--line); }
+  figcaption { margin-top: 4px; font-size: 11px; color: var(--muted); }
+  figcaption b { color: var(--ink); font-weight: 600; }
+  .accent { color: var(--accent); }
+  .compact figure { width: auto; }
+  .compact figcaption span { display: none; }
+</style>
+</head>
+<body>
+<h1>Figure contact sheet</h1>
+<p class="note">Every exercise: hero, then each step and level, at 40&nbsp;px and 96&nbsp;px. Add <code>?dark</code> for dark mode, <code>?only=key</code> to filter, <code>?compact</code> to hide the text, <code>?size=200</code> to enlarge the second drawing.</p>
+<main id="out"></main>
+<script type="module">
+  import { stepImages, levelImages, heroImage } from '../js/figure.js';
+  import { EXERCISES } from '../js/data/exercises.js';
+  const q = new URLSearchParams(location.search);
+  if (q.has('dark')) document.documentElement.dataset.theme = 'dark';
+  const only = q.get('only');
+  if (q.has('compact')) document.body.classList.add('compact');
+  if (q.get('size')) document.head.insertAdjacentHTML('beforeend', `<style>.s96{width:${+q.get('size')}px;height:${+q.get('size')}px}</style>`);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const cell = (svg, label, text, cls = '') => `<figure class="${cls}"><div class="pair"><div class="s40">${svg}</div><div class="s96">${svg}</div></div><figcaption><b>${esc(label)}</b> <span>${esc(text)}</span></figcaption></figure>`;
+  const out = [];
+  for (const e of EXERCISES) {
+    const key = e.images.kind + (e.images.stance ? ':' + e.images.stance : '');
+    if (only && !key.startsWith(only)) continue;
+    const steps = stepImages(e.images), levels = levelImages(e.images);
+    const cells = [cell(heroImage(e.images), 'Hero', '', 'accent')];
+    steps.forEach((s, i) => cells.push(cell(s, `Step ${i + 1}`, e.steps[i] || '')));
+    levels.forEach((s, i) => cells.push(cell(s, `Level ${i + 1}`, e.levels[i] || '')));
+    out.push(`<section><h2>${e.seq}.${e.n} ${esc(e.name)} <code>${esc(key)}</code></h2><div class="grid">${cells.join('')}</div></section>`);
+  }
+  document.getElementById('out').innerHTML = out.join('');
+</script>
+</body>
+</html>
