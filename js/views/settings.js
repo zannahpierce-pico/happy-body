@@ -8,7 +8,7 @@ let audioLog = '';
 
 export function render(main) {
   const showLog = () => { const o = $('[data-audio-log]', main); if (o && audioLog) { o.hidden = false; o.textContent = audioLog; } };
-  const draw = () => { main.innerHTML = view(); fillEstimate(main); showLog(); };
+  const draw = () => { main.innerHTML = view(); fillEstimate(main); fillVersion(main); showLog(); };
   draw();
   // Saves and photo arrivals only touch the save line and the storage figure, so
   // update those in place: a full redraw on each of them made the page flicker
@@ -124,6 +124,7 @@ function view() {
     <section class="card flat">
       <div class="card-title"><h3>About</h3></div>
       <p class="small muted" style="margin:0">A personal runner for the exercise program in <i>The Happy Body</i> by Aniela and Jerzy Gregorek. Not affiliated with the authors. Exercise text is paraphrased from chapter 8; drawings are original. Install: in Safari, Share → Add to Home Screen. Photos you add stay on this device unless you sign in to sync them.</p>
+      <p class="small muted" style="margin:8px 0 0" data-version>Version: checking…</p>
     </section>
   </div>`;
 }
@@ -268,6 +269,20 @@ async function importFile(f) {
     try { await store.importData(data, b.dataset.mode); sh.close(); toast(nPhotos ? `Imported ${nPhotos} photos` : 'Imported'); applyTheme(store.settings.theme); }
     catch (e) { toast(e.message || 'Import failed', { error: true }); }
   });
+}
+
+// The installed version is the service worker's cache name (old ones are deleted on activate).
+async function fillVersion(main, again = true) {
+  const el = $('[data-version]', main);
+  if (!el) return;
+  try {
+    const keys = 'caches' in window ? (await caches.keys()).filter((k) => k.startsWith('hb-v')) : [];
+    const num = (k) => k.slice(4).split('.').map((x) => parseInt(x, 10) || 0);
+    keys.sort((a, b) => { const x = num(a), y = num(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0; });
+    el.textContent = keys.length ? `Version ${keys[keys.length - 1].slice(4)}` : 'Version: not installed offline yet';
+  } catch { el.textContent = ''; }
+  // A first install or an update may still be settling: look once more.
+  if (again) setTimeout(() => { if (el.isConnected) fillVersion(main, false); }, 2500);
 }
 
 async function fillEstimate(main) {

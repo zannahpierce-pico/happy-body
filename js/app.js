@@ -109,20 +109,42 @@ function registerSW() {
         });
       });
       if (reg.waiting && navigator.serviceWorker.controller) showUpdate(reg);
+      // Coming back to the app (home-screen apps rarely reload): look for a new version.
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
     } catch (e) { console.warn('SW registration failed', e); }
   };
   if (document.readyState === 'complete') go(); else window.addEventListener('load', go);
-  // Reload only after the user accepted an update, never on the first install.
+  // Reload only after an update was applied, never on the first install.
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (updateAccepted) location.reload(); });
 }
 
+// A new version applies itself (the page reloads; everything is saved as you go)
+// unless that would interrupt something: a timer under way, or typing in a field.
+// Then a banner offers it, and it applies on its own once the timer stops.
+let pendingUpdate = null;
+const BUSY_MODES = new Set(['running', 'paused', 'ready', 'ready-paused', 'relax']);
+function updateWouldInterrupt() {
+  const tag = document.activeElement?.tagName;
+  return BUSY_MODES.has(session.mode) || tag === 'INPUT' || tag === 'TEXTAREA';
+}
+function applyUpdate(reg) {
+  if (!reg.waiting) return;
+  pendingUpdate = null;
+  updateAccepted = true;
+  reg.waiting.postMessage('skipWaiting');
+}
 function showUpdate(reg) {
+  pendingUpdate = reg;
+  if (!updateWouldInterrupt()) return applyUpdate(reg);
   if ($('.update-banner')) return;
   const b = document.createElement('div');
   b.className = 'update-banner';
   b.innerHTML = `<span>A new version is ready.</span><button class="btn sm primary">Update</button>`;
-  b.querySelector('button').addEventListener('click', () => { updateAccepted = true; reg.waiting?.postMessage('skipWaiting'); });
+  b.querySelector('button').addEventListener('click', () => applyUpdate(reg));
   $('#topbar').after(b);
+}
+function maybeApplyUpdate() {
+  if (pendingUpdate && !updateWouldInterrupt()) applyUpdate(pendingUpdate);
 }
 
 async function boot() {
@@ -143,7 +165,7 @@ async function boot() {
   // A sign-in link opened in a tab that already has the app: start over so boot reads it.
   window.addEventListener('hashchange', () => { if (/^#(access_token|error)=/.test(location.hash)) location.reload(); else route(); });
   store.subscribe((what) => { if (what === 'settings' || what === 'today' || what === 'import') drawTopbar(); if (what === 'status' && store.status.error) toast(`Save failed: ${store.status.error}`, { error: true, ms: 5000 }); });
-  session.subscribe((what) => { if (what === 'state') drawTopbar(); });
+  session.subscribe((what) => { if (what === 'state') { drawTopbar(); maybeApplyUpdate(); } });
   session.refresh();
   sync.start();
   if (linked) settingsView.afterSignIn(linked);
