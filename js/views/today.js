@@ -3,7 +3,7 @@
 import { store } from '../store.js';
 import { session } from '../session.js';
 import { byKey, sequence, key as keyOf } from '../data/exercises.js';
-import { phaseById, weightLabel, repsFor, repsLabel, repSide, kitFor } from '../program.js';
+import { phaseById, loadLabel, repsFor, repsLabel, repSide, kitFor, fmtW } from '../program.js';
 import { heroImage, stepImages } from '../figure.js';
 import { photoKey, photoURL } from '../photos.js';
 import { esc, on, $, $$, fmtTime, confirmSheet, toast, ICONS } from '../ui.js';
@@ -91,7 +91,7 @@ function view() {
 function kitLine() {
   const s = store.settings;
   const kit = kitFor(s.phase, s);
-  const parts = kit.dumbbells.map((d) => `<span><b>${d.n} × ${d.lb} lb</b>${d.or ? ` or two of the ${d.or} lb` : ''}</span>`);
+  const parts = kit.items.map((d) => `<span><b>${d.n} × ${fmtW(d.lb)} lb${d.plate ? ' plate' : ''}</b>${d.or ? ` or two of the ${fmtW(d.or)} lb` : ''}</span>`);
   if (kit.bench) parts.push('<span><b>a bench or chair</b> for the squats</span>');
   if (!parts.length) return '';
   return `<div class="kit"><span class="kit-t">Have ready</span>${parts.join('')}</div>`;
@@ -182,8 +182,8 @@ function timerPanel(pos, mode) {
   }
 
   const meta = compact
-    ? esc(weightLabel(e, s.base))
-    : `${esc(weightLabel(e, s.base))}, ${esc(repsLabel(e, s))}, <button class="lvl" data-ex="${k}" aria-label="Level ${lv}, change level">level ${lv}${CHEV_SM}</button>`;
+    ? esc(loadLabel(e, s))
+    : `${esc(loadLabel(e, s))}, ${esc(repsLabel(e, s))}, <button class="lvl" data-ex="${k}" aria-label="Level ${lv}, change level">level ${lv}${CHEV_SM}</button>`;
 
   return `<section class="timer ${compact ? 'compact' : ''}" data-timer="${k}">
     <div class="head">
@@ -340,7 +340,7 @@ function sequences(pos) {
       return `<button class="ex-row ${cls}" data-ex="${k}" data-thumb="${(finished || d) ? '' : photoKey(k, 'step', 1)}">
         <span class="fig">${fig}</span>
         <span class="n">${esc(e.name)}</span>
-        <span class="m">${esc(shortWeight(e, s.base))}</span>
+        <span class="m">${esc(shortWeight(e, s))}</span>
       </button>`;
     }).join('');
     parts.push(`<div class="ex-list">${rows}</div>`);
@@ -348,8 +348,8 @@ function sequences(pos) {
   return `<section class="seqs">${parts.join('')}</section>`;
 }
 
-function shortWeight(e, base) {
-  const w = weightLabel(e, base);
+function shortWeight(e, s) {
+  const w = loadLabel(e, s);
   return w === 'No weight' ? 'no weight' : w.replace(', or two at', ' or two at');
 }
 

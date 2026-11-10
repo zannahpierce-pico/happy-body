@@ -1,8 +1,8 @@
-// Program: phase, base weight, reps, computed weight table, per-exercise levels, soreness flow, history.
+// Program: phase, base weight, your weights, reps, computed weight table, per-exercise levels, soreness flow, history.
 import { store } from '../store.js';
 import { session } from '../session.js';
 import { EXERCISES, key as keyOf, byKey } from '../data/exercises.js';
-import { PHASES, phaseById, weightFor, repsFor, round05, applySoreness, increment, suggestedPhase, planMinutes } from '../program.js';
+import { PHASES, phaseById, weightFor, loadFor, fmtW, repsFor, round05, applySoreness, increment, suggestedPhase, planMinutes } from '../program.js';
 import { esc, on, $, $$, toast, sheet, confirmSheet, fmtLb, fmtDate } from '../ui.js';
 import { openExercise } from './exercise.js';
 
@@ -16,6 +16,22 @@ export function render(main) {
     if (id === store.settings.phase) return;
     await store.setSettings({ phase: id }, { type: 'phase', to: id });
     toast(`${phaseById(id).label}: ${phaseById(id).short}`);
+  });
+  on(main, 'click', '[data-kit-del]', async (ev, b) => {
+    const kit = (store.settings.kit || []).map((k) => ({ ...k }));
+    kit.splice(Number(b.dataset.kitDel), 1);
+    await store.setSettings({ kit });
+  });
+  on(main, 'click', '[data-kit-add]', async () => {
+    const lb = Number($('[data-kit-lb]', main).value);
+    const n = Number($('[data-kit-n]', main).value) || 1;
+    const plate = $('[data-kit-kind]', main).value === 'p';
+    if (!(lb > 0)) { toast('Enter the weight in pounds', { error: true }); return; }
+    const kit = (store.settings.kit || []).map((k) => ({ ...k }));
+    const same = kit.find((k) => k.lb === lb && !!k.plate === plate);
+    if (same) same.n += n; else kit.push(plate ? { lb, n, plate } : { lb, n });
+    kit.sort((a, b) => a.lb - b.lb || (a.plate ? 1 : -1));
+    await store.setSettings({ kit });
   });
   on(main, 'click', '[data-base]', async (ev, b) => {
     const delta = Number(b.dataset.base);
@@ -91,6 +107,20 @@ function view() {
     </section>
 
     <section class="card">
+      <div class="card-title"><h2>Your weights</h2><span class="hint">what the table picks from</span></div>
+      ${(s.kit || []).length
+        ? (s.kit || []).map((it, i) => `<div class="row"><span class="label">${it.n} × ${fmtW(it.lb)} lb ${it.plate ? 'plate' : 'dumbbell'}</span><button class="btn ghost sm" data-kit-del="${i}">Remove</button></div>`).join('')
+        : '<p class="small muted" style="margin:0 0 10px">None listed, so every weight shows the book\'s figure.</p>'}
+      <div class="kit-add">
+        <input type="number" inputmode="decimal" step="0.25" min="0.25" placeholder="lb" data-kit-lb aria-label="Pounds">
+        <select data-kit-n aria-label="How many"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select>
+        <select data-kit-kind aria-label="Kind"><option value="d">dumbbell</option><option value="p">plate</option></select>
+        <button class="btn sm" data-kit-add>Add</button>
+      </div>
+      <p class="small muted" style="margin:10px 0 0">A load is one dumbbell, one plate, or two plates held together. Each exercise shows the closest load to the book's figure, and the book's figure beside it when they differ.</p>
+    </section>
+
+    <section class="card">
       <div class="card-title"><h2>Weights & levels</h2><span class="hint">tap a name for details</span></div>
       <div class="wl">
         ${phaseById(s.phase).plan.map(([seq]) => `
@@ -100,7 +130,7 @@ function view() {
             const lv = s.levels[k] || 5;
             return `<div class="wrow">
               <button class="name" data-open="${k}"><span class="k">${k}</span>${esc(e.name)}</button>
-              <div class="w">${e.lift ? `${fmtLb(weightFor(e, s.base))} lb` : '<span class="muted">no weight</span>'}</div>
+              <div class="w">${e.lift ? wCell(e, s) : '<span class="muted">no weight</span>'}</div>
               <div class="meta">${e.lift ? `${e.pct}% · ${esc(e.hands)} · ${repsFor(e, s)} reps` : '6 reps'}</div>
               <div class="lv" role="radiogroup" aria-label="Level for ${esc(e.name)}">${[1, 2, 3, 4, 5].map((n) => `<button data-lv="${k}|${n}" class="${lv === n ? 'on' : ''}" aria-checked="${lv === n}">${n}</button>`).join('')}</div>
             </div>`;
@@ -177,3 +207,15 @@ async function raiseFlow() {
   toast(`Base weight is now ${fmtLb(to)} lb`);
 }
 
+
+// The weight column: what to pick up, with the book's figure beside it when they differ.
+function wCell(e, s) {
+  const L = loadFor(e, s);
+  const book = `${fmtW(L.target)} lb`;
+  if (!L.items) return book;
+  if (L.lb == null) return `${book} <span class="muted">(none close)</span>`;
+  const twoAtHalf = L.hands === 2 && e.hands !== 'each hand';
+  const target = twoAtHalf ? L.target / 2 : L.target;
+  const what = `${L.items.map((i) => fmtW(i.lb)).join('+')} lb${L.items[0].plate ? ' plate' : ''}${twoAtHalf ? ' ×2' : ''}`;
+  return Math.abs(L.lb - target) < 0.01 ? what : `${what} <span class="muted">(${book})</span>`;
+}

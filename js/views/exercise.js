@@ -1,7 +1,7 @@
 // Exercise detail sheet: setup, steps with images, levels (selectable), tempo, purpose.
 import { store } from '../store.js';
 import { key as keyOf } from '../data/exercises.js';
-import { weightLabel, repsLabel } from '../program.js';
+import { loadLabel, repsLabel } from '../program.js';
 import { repSeconds } from '../data/exercises.js';
 import { stepImages, levelImages } from '../figure.js';
 import { photoKey, pageKey, photoURL } from '../photos.js';
@@ -22,7 +22,7 @@ export async function openExercise(e) {
       <div>
         <div class="ex-key">${k} · Sequence ${e.seq}</div>
         <h2 style="font-size:24px">${esc(e.name)}</h2>
-        <div class="muted small">${esc(weightLabel(e, s.base))} · ${esc(repsLabel(e, s))} · Level <span data-lv-now>${s.levels[k] || 5}</span></div>
+        <div class="muted small">${esc(loadLabel(e, s))} · ${esc(repsLabel(e, s))} · Level <span data-lv-now>${s.levels[k] || 5}</span></div>
         <button class="book-btn" data-book hidden>Book page</button>
       </div>
       <button class="close" data-close aria-label="Close">×</button>

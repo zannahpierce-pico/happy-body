@@ -3,7 +3,7 @@
 
 import { store } from './store.js';
 import { byKey } from './data/exercises.js';
-import { positionFor, today, repsFor, weightFor, repSide, programWeek } from './program.js';
+import { positionFor, today, repsFor, weightFor, loadFor, repSide, programWeek } from './program.js';
 import { TempoTimer, countdown } from './timer.js';
 import * as audio from './audio.js';
 import { keepAwake } from './wakelock.js';
@@ -240,7 +240,7 @@ class Session {
     await store.addEntry({
       key: slot.key, seq: slot.seq, n: slot.n, round: slot.round, rounds: slot.rounds,
       phase: s.phase, skipped, timed, secs,
-      w: weightFor(e, s.base), lv: s.levels[slot.key] || 5, reps: repsFor(e, s),
+      w: weightFor(e, s.base), load: loadFor(e, s)?.lb ?? null, lv: s.levels[slot.key] || 5, reps: repsFor(e, s),
     });
   }
 
