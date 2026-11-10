@@ -82,13 +82,13 @@ export async function openExercise(e) {
   // The whole book page for this exercise, if one has been imported.
   photoURL(pageKey(k)).then((url) => {
     const b = $('[data-book]', root);
-    if (url && b) { b.hidden = false; b.addEventListener('click', () => viewPhoto(url, `${e.name}, book page`)); }
+    if (url && b) { b.hidden = false; b.addEventListener('click', () => viewPhoto(pageKey(k), `${e.name}, book page`)); }
   });
 
   // Tap a photo to see it full screen.
   on(root, 'click', '[data-img] img', (ev, img) => {
     ev.stopImmediatePropagation(); // don't also pick the level
-    viewPhoto(img.src);
+    viewPhoto(img.closest('[data-img]').dataset.img);
   });
 
   on(root, 'click', '[data-level]', async (ev, el) => {
@@ -105,7 +105,12 @@ export async function openExercise(e) {
 }
 
 // Full-screen photo: tap to zoom in on that spot, scroll to pan, tap again to fit.
-function viewPhoto(url, alt = '') {
+// Reads the photo from storage itself: the thumbnail's object URL may have been revoked
+// since it loaded (the photo cache is dropped whenever sync or an import stores a photo).
+async function viewPhoto(key, alt = '') {
+  const p = await store.getPhoto(key);
+  if (!p?.blob) { toast('That photo is not on this device.', { error: true }); return; }
+  const url = URL.createObjectURL(p.blob);
   const v = document.createElement('div');
   v.className = 'viewer';
   v.setAttribute('role', 'dialog');
@@ -113,7 +118,7 @@ function viewPhoto(url, alt = '') {
   v.innerHTML = `<img alt="${esc(alt)}"><button class="close" aria-label="Close">×</button>`;
   const img = $('img', v);
   img.src = url;
-  const close = () => { v.remove(); document.removeEventListener('keydown', onKey); };
+  const close = () => { v.remove(); document.removeEventListener('keydown', onKey); URL.revokeObjectURL(url); };
   const onKey = (ev) => { if (ev.key === 'Escape') close(); };
   $('.close', v).addEventListener('click', close);
   img.addEventListener('click', (ev) => {
