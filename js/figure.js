@@ -108,7 +108,7 @@ function wrap(inner, pts, p) {
 }
 
 // Top-down view used for Working Hinges (forearm swing is invisible from the side).
-function topView(openDeg, { back = false } = {}) {
+function topView(openDeg, { back = false, palms = false } = {}) {
   const parts = [];
   const head = [100, 56];
   const S = [[72, 92], [128, 92]];
@@ -123,7 +123,8 @@ function topView(openDeg, { back = false } = {}) {
     parts.push(line(S[i], E[i], 4), line(E[i], W, 4));
     parts.push(dumbbell(W, ang + 90));
   }
-  if (back) parts.push(`<text x="100" y="196" text-anchor="middle" font-size="11" fill="currentColor" stroke="none" opacity="0.7">on heels</text>`);
+  const label = [palms && 'palms up', back && 'on heels'].filter(Boolean).join(' · ');
+  if (label) parts.push(`<text x="100" y="196" text-anchor="middle" font-size="11" fill="currentColor" stroke="none" opacity="0.7">${label}</text>`);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 20 160 180" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" role="img">${parts.join('')}</svg>`;
 }
 
@@ -156,8 +157,10 @@ const KINDS = {
   standingTall: {
     steps: () => [
       standing({ db: DB2 }),
+      standing({ arms: armsAt(-90, 90), db: DB2 }),
       standing({ arms: armsAt(90, 90), db: DB2 }),
       standing({ arms: armsAt(90, 90), heels: true, db: DB2 }),
+      standing({ db: DB2 }),
     ],
     levels: () => [
       standing({ arms: armsAt(90, 90), db: DB2 }),
@@ -172,6 +175,7 @@ const KINDS = {
       standing({ arms: armsAt(95, -140), db: [{ at: 'near', a: 90 }] }),
       standing({ arms: armsAt(90, 90), db: [{ at: 'near', a: 90 }] }),
       standing({ arms: armsAt(90, 90), heels: true, db: [{ at: 'near', a: 90 }] }),
+      standing({ arms: armsAt(95, -140), db: [{ at: 'near', a: 90 }] }),
     ],
     levels: () => [
       supine({ arms: armsAt(90, 90), db: [{ at: 'near', a: 0 }] }),
@@ -185,29 +189,44 @@ const KINDS = {
     steps: () => [
       squatPose(0, { arms: armsAt(-30, 125), db: [{ at: 'near', a: 90 }] }),
       squatPose(1, { arms: armsAt(-30, 125), db: [{ at: 'near', a: 90 }] }),
+      squatPose(0, { arms: armsAt(-30, 125), db: [{ at: 'near', a: 90 }] }),
     ],
     levels: () => [0.25, 0.45, 0.65, 0.85, 1].map((d, i) => squatPose(d, { arms: armsAt(-30, 125), db: [{ at: 'near', a: 90 }], bench: i > 0 && i < 4 })),
   },
   risingTower: {
     steps: () => [
+      standing({ db: DB2 }),
+      standing({ arms: armsAt(-90, 0), db: DB2 }),
+      standing({ arms: armsAt(-90, 75), db: DB2 }),
       standing({ arms: armsAt(-90, 90), db: DB2 }),
       standing({ arms: armsAt(90, 90), db: DB2 }),
       squatPose(1, { arms: armsAt(90, 90) }),
+      standing({ arms: armsAt(90, 90), db: DB2 }),
       standing({ arms: armsAt(-90, 90), db: DB2 }),
+      standing({ arms: armsAt(-90, 75), db: DB2 }),
+      standing({ arms: armsAt(-90, 0), db: DB2 }),
+      standing({ db: DB2 }),
     ],
     levels: () => [0.25, 0.45, 0.65, 0.85, 1].map((d, i) => squatPose(d, { arms: armsAt(90, 90), bench: i > 0 && i < 4 })),
   },
   powerTower: {
     steps: () => [
+      standing({ db: DB2 }),
+      standing({ arms: armsAt(-90, 0), db: DB2 }),
+      standing({ arms: armsAt(-90, 75), db: DB2 }),
       standing({ arms: armsAt(-90, 90), db: DB2 }),
       squatPose(1, { arms: armsAt(-90, 90) }),
       squatPose(1, { arms: armsAt(90, 90) }),
       standing({ arms: armsAt(90, 90), db: DB2 }),
+      standing({ arms: armsAt(-90, 90), db: DB2 }),
+      standing({ arms: armsAt(-90, 75), db: DB2 }),
+      standing({ arms: armsAt(-90, 0), db: DB2 }),
+      standing({ db: DB2 }),
     ],
     levels: () => [0.25, 0.45, 0.65, 0.85, 1].map((d, i) => squatPose(d, { arms: armsAt(90, 90), bench: i > 0 && i < 4 })),
   },
   bow: {
-    steps: (o) => [bowPose(1, o), bowPose(0, o), bowPose(0, { ...o, toes: true }), bowPose(0, o)],
+    steps: (o) => [bowPose(0, o), bowPose(1, o), bowPose(0, o), bowPose(0, { ...o, toes: true }), bowPose(0, o)],
     levels: (o) => [0.4, 0.64, 0.8, 0.92, 1].map((d) => bowPose(d, o)),
   },
   crestingWave: {
@@ -215,6 +234,7 @@ const KINDS = {
       supine({ legs: [{ t: 90, s: 90, foot: 160 }, { t: 90, s: 90, foot: 160 }], arms: armsAt(180, 180) }),
       supine({ torso: 140, neck: 130, face: 60, legs: [{ t: 90, s: 90, foot: 160 }, { t: 90, s: 90, foot: 160 }], arms: armsAt(50, 50) }),
       supine({ torso: 136, neck: 126, face: 60, legs: [{ t: 90, s: 90, foot: 160 }, { t: 90, s: 90, foot: 160 }], arms: armsAt(46, 46) }),
+      supine({ legs: [{ t: 90, s: 90, foot: 160 }, { t: 90, s: 90, foot: 160 }], arms: armsAt(180, 180) }),
     ],
     levels: () => [
       supine({ torso: 165, neck: 150, face: 80, legs: [{ t: 90, s: 90, foot: 160 }, { t: 92, s: 85, foot: 160 }], arms: [{ u: 110, f: 175 }, { u: 110, f: 175 }] }),
@@ -226,6 +246,7 @@ const KINDS = {
   },
   shiftingWave: {
     steps: () => [
+      supine({ legs: [{ t: 90, s: 90, foot: 160 }, { t: 90, s: 90, foot: 160 }], arms: [{ u: 180, f: 180 }, { u: 180, f: 180 }] }),
       supine({ torso: 140, neck: 130, face: 60, legs: [{ t: 90, s: 90, foot: 160 }, { t: 90, s: 90, foot: 160 }], arms: [{ u: 50, f: 50 }, { u: 0, f: 0 }] }),
       supine({ torso: 136, neck: 126, face: 60, legs: [{ t: 90, s: 90, foot: 160 }, { t: 90, s: 90, foot: 160 }], arms: [{ u: 46, f: 46 }, { u: 0, f: 0 }] }),
       supine({ legs: [{ t: 90, s: 90, foot: 160 }, { t: 90, s: 90, foot: 160 }], arms: [{ u: 180, f: 180 }, { u: 180, f: 180 }] }),
@@ -241,8 +262,10 @@ const KINDS = {
   rollingWave: {
     steps: () => [
       supine({ arms: armsAt(180, 180), legs: [{ t: 0, s: 0, foot: 90 }, { t: 0, s: 0, foot: 90 }] }),
+      supine({ torso: 52, neck: 22, face: -50, arms: armsAt(-30, -60) }),
       supine({ torso: 30, neck: 10, face: -40, arms: armsAt(-20, -30) }),
       supine({ torso: 26, neck: 6, face: -40, arms: armsAt(-18, -26) }),
+      supine({ arms: armsAt(180, 180), legs: [{ t: 0, s: 0, foot: 90 }, { t: 0, s: 0, foot: 90 }] }),
     ],
     levels: () => [
       supine({ torso: 160, neck: 150, face: 90, arms: armsAt(90, 90) }),
@@ -254,6 +277,7 @@ const KINDS = {
   },
   takeOff: {
     steps: () => [
+      prone({ arms: armsAt(0, 0) }),
       prone({ torso: 160, neck: 160, face: -60, arms: armsAt(5, 5) }),
       prone({ torso: 155, neck: 155, face: -55, arms: armsAt(5, 5) }),
       prone({ arms: armsAt(0, 0) }),
@@ -268,6 +292,7 @@ const KINDS = {
   },
   liftOff: {
     steps: () => [
+      prone({ arms: armsAt(0, 0) }),
       prone({ torso: 158, neck: 130, face: 50, arms: armsAt(5, 5) }),
       prone({ torso: 153, neck: 125, face: 55, arms: armsAt(5, 5) }),
       prone({ arms: armsAt(0, 0) }),
@@ -282,6 +307,7 @@ const KINDS = {
   },
   flyUp: {
     steps: () => [
+      prone({ arms: armsAt(165, 180) }),
       prone({ torso: 150, neck: 150, face: 180, arms: armsAt(-110, 180) }),
       prone({ torso: 146, neck: 136, face: 150, arms: armsAt(-110, 180) }),
       prone({ arms: armsAt(165, 180) }),
@@ -296,6 +322,7 @@ const KINDS = {
   },
   openingWide: {
     steps: () => [
+      supine({ arms: armsAt(-35, 95), db: [{ at: 'near', a: 0 }, { at: 'far', a: 0 }] }),
       supine({ arms: armsAt(90, 90), db: [{ at: 'near', a: 0 }, { at: 'far', a: 0 }] }),
       supine({ arms: armsAt(90, 90), torso: 176, db: [{ at: 'near', a: 0 }, { at: 'far', a: 0 }] }),
       supine({ arms: armsAt(-35, 95), db: [{ at: 'near', a: 0 }, { at: 'far', a: 0 }] }),
@@ -310,6 +337,7 @@ const KINDS = {
   },
   lyingLong: {
     steps: () => [
+      supine({ arms: armsAt(180, 180), db: [{ at: 'near', a: 0 }] }),
       supine({ arms: armsAt(90, 90), db: [{ at: 'near', a: 0 }] }),
       supine({ arms: armsAt(90, 90), torso: 176, db: [{ at: 'near', a: 0 }] }),
       supine({ arms: armsAt(180, 180), db: [{ at: 'near', a: 0 }] }),
@@ -324,6 +352,7 @@ const KINDS = {
   },
   rockingTrunk: {
     steps: () => [
+      standing({ torso: 0, face: -70, legs: [{ t: -95, s: -85, foot: 0 }, { t: -95, s: -85, foot: 0 }], arms: [{ u: -140, f: -115 }, { u: -92, f: -90 }], db: [{ at: 'far' }] }),
       standing({ torso: 0, face: -70, legs: [{ t: -95, s: -85, foot: 0 }, { t: -95, s: -85, foot: 0 }], arms: [{ u: -140, f: -115 }, { u: 180, f: -90 }], db: [{ at: 'far' }] }),
       standing({ torso: 8, face: -60, legs: [{ t: -95, s: -85, foot: 0 }, { t: -95, s: -85, foot: 0 }], arms: [{ u: -140, f: -115 }, { u: 175, f: -80 }], db: [{ at: 'far' }] }),
       standing({ torso: 0, face: -70, legs: [{ t: -95, s: -85, foot: 0 }, { t: -95, s: -85, foot: 0 }], arms: [{ u: -140, f: -115 }, { u: -92, f: -90 }], db: [{ at: 'far' }] }),
@@ -337,7 +366,7 @@ const KINDS = {
     ],
   },
   workingHinges: {
-    stepsSVG: () => [topView(0), topView(90), topView(100, { back: true }), topView(0)],
+    stepsSVG: () => [topView(180), topView(0), topView(0, { palms: true }), topView(90, { palms: true }), topView(100, { back: true, palms: true }), topView(0, { palms: true }), topView(0), topView(180)],
     levelsSVG: () => [topView(15), topView(30), topView(60), topView(90), topView(100, { back: true })],
   },
 };
@@ -356,5 +385,5 @@ export function levelImages(images) {
 }
 export function heroImage(images) {
   const s = stepImages(images);
-  return s[Math.min(1, s.length - 1)] || s[0] || '';
+  return s[Math.floor((s.length - 1) / 2)] || s[0] || ''; // a mid-movement pose, not the start
 }

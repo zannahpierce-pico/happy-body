@@ -40,3 +40,27 @@ export async function downscale(file, max = 1024, quality = 0.85) {
   const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', quality));
   return blob || file;
 }
+
+// Steps were renumbered to match the book (every exercise starts at its start position, and
+// steps the data used to merge are separate again). Stored step photos keyed by the old index
+// move to the index their pose now has. Runs once per device; sync carries the moves across.
+const STEP_REMAP = {
+  '1:1': [2, 3, 4], '1:2': [1, 2, 3], '1:3': [1, 2, 3], '1:4': [1, 2, 3], '1:5': [1, 2], '1:6': [1, 2, 3, 4],
+  '2:1': [1, 2, 3], '2:2': [1, 2, 3], '2:3': [1, 2, 3], '2:4': [1, 2, 3], '2:5': [3, 4, 5, 10], '2:6': [1, 2, 3, 4],
+  '3:1': [1, 2, 3], '3:2': [2, 3, 4], '3:3': [1, 2, 3], '3:4': [2, 3, 4, 7], '3:5': [3, 4, 5, 6], '3:6': [1, 2, 3, 4],
+};
+const REMAP_FLAG = 'hb:stepPhotos:v2';
+export async function migrateStepPhotos() {
+  try { if (localStorage.getItem(REMAP_FLAG)) return; } catch { /* no localStorage: just try */ }
+  const moves = [];
+  for (const k of await store.photoKeys()) {
+    const m = /^(\d+:\d+):step:(\d+)$/.exec(k);
+    const to = m && STEP_REMAP[m[1]]?.[Number(m[2])];
+    if (to != null && to !== Number(m[2])) moves.push({ from: k, to: photoKey(m[1], 'step', to) });
+  }
+  const blobs = [];
+  for (const mv of moves) { const p = await store.getPhoto(mv.from); if (p?.blob) blobs.push({ ...mv, blob: p.blob }); }
+  for (const mv of moves) await store.deletePhoto(mv.from);   // all deletes first: new keys can overlap old ones
+  for (const mv of blobs) await store.setPhoto(mv.to, mv.blob);
+  try { localStorage.setItem(REMAP_FLAG, '1'); } catch { /* ignore */ }
+}
