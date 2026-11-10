@@ -1,6 +1,6 @@
 // Service worker: precache everything on install, serve cache-first, and tell the
 // page when a new version is waiting. Bump VERSION whenever any file changes.
-const VERSION = 'hb-v2.1.11';
+const VERSION = 'hb-v2.1.12';
 const ASSETS = [
   './',
   './index.html',
