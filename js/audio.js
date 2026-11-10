@@ -1,5 +1,8 @@
-// Audio cues (Web Audio), spoken phase names (SpeechSynthesis) and an iOS
-// keep-awake fallback (a looping silent <audio> element).
+// Audio cues (Web Audio), spoken phrases (recorded clips, with SpeechSynthesis
+// for any phrase that has no clip) and an iOS keep-awake fallback (a looping
+// silent <audio> element).
+
+import { CLIPS } from './data/clips.js';
 
 let ctx = null;
 let silent = null;
@@ -42,6 +45,7 @@ export function unlock({ prime = true } = {}) {
   try {
     if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
     wake();
+    preloadClips();
     // Play a near-silent blip to fully unlock on iOS.
     const o = ctx.createOscillator(); const g = ctx.createGain();
     g.gain.value = 0.0001; o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.02);
@@ -114,6 +118,74 @@ export function cue(kind) {
   try { ctx.resume().then(() => playCue(kind)).catch(() => {}); } catch { /* ignore */ }
 }
 
+// ── Recorded phrases ──
+// One MP3 per phrase in CLIPS (audio/say/<file>.mp3), decoded once into the
+// audio context. Leading and trailing silence is measured at decode time so the
+// word lands on the beat whatever padding the recording has.
+const clips = new Map();     // text → Promise<{ buffer, start, dur } | null>
+let clipSrc = null;          // the clip playing now
+let clipEndAt = 0;           // context time when it ends
+
+function loadClip(text) {
+  const file = CLIPS[text];
+  if (!file || !ctx) return Promise.resolve(null);
+  if (!clips.has(text)) {
+    const p = fetch(`./audio/say/${file}.mp3`)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((ab) => ctx.decodeAudioData(ab))
+      .then((buffer) => {
+        const d = buffer.getChannelData(0);
+        const th = 0.012;
+        let a = 0, b = d.length - 1;
+        while (a < b && Math.abs(d[a]) < th) a++;
+        while (b > a && Math.abs(d[b]) < th) b--;
+        const sr = buffer.sampleRate;
+        const start = Math.max(0, a / sr - 0.02);
+        const dur = Math.min(buffer.duration - start, (b - a) / sr + 0.14);
+        let peak = 0;
+        for (let i = a; i <= b; i++) { const v = Math.abs(d[i]); if (v > peak) peak = v; }
+        const gain = peak > 0 ? Math.min(2.5, 0.8 / peak) : 1; // even out the recordings' levels
+        return { buffer, start, dur, gain };
+      })
+      .catch((e) => { console.warn('voice clip failed', text, e); clips.delete(text); return null; });
+    clips.set(text, p);
+  }
+  return clips.get(text);
+}
+
+// Fetch and decode every clip once there is a context (after the first tap).
+let preloaded = false;
+function preloadClips() {
+  if (preloaded || !ctx) return;
+  preloaded = true;
+  for (const text of Object.keys(CLIPS)) loadClip(text);
+}
+
+function stopClip() {
+  if (clipSrc) { try { clipSrc.stop(); } catch { /* already ended */ } clipSrc = null; }
+  clipEndAt = 0;
+}
+
+// Play a phrase's clip now, or after the one playing when `interrupt` is false.
+// Resolves false when there is no usable clip, so the caller can fall back.
+async function playClip(text, interrupt) {
+  const c = await loadClip(text);
+  if (!c || !ctx || !voiceEnabled || document.hidden) return !!c && (!voiceEnabled || document.hidden);
+  wake();
+  if (interrupt) stopClip();
+  const at = Math.max(ctx.currentTime, interrupt ? 0 : clipEndAt);
+  const src = ctx.createBufferSource();
+  src.buffer = c.buffer;
+  const g = ctx.createGain();
+  g.gain.value = c.gain;
+  src.connect(g); g.connect(ctx.destination);
+  src.start(at, c.start, c.dur);
+  src.onended = () => { if (clipSrc === src) clipSrc = null; };
+  clipSrc = src;
+  clipEndAt = at + c.dur;
+  return true;
+}
+
 // Safari drops utterances that get garbage-collected before they finish.
 const live = new Set();
 function keep(u) {
@@ -124,7 +196,15 @@ function keep(u) {
 }
 
 let sayTimer = null;
-export function say(text, { interrupt = true, rate = 1.05 } = {}) {
+export function say(text, opts = {}) {
+  if (!voiceEnabled || !text || document.hidden) return;
+  if (CLIPS[text] && ctx) {
+    playClip(text, opts.interrupt !== false).then((ok) => { if (!ok) speak(text, opts); });
+    return;
+  }
+  speak(text, opts);
+}
+function speak(text, { interrupt = true, rate = 1.05 } = {}) {
   const s = synth();
   if (!voiceEnabled || !s || !text || document.hidden) return;
   try {
@@ -147,6 +227,7 @@ export function say(text, { interrupt = true, rate = 1.05 } = {}) {
 }
 export function hush() {
   clearTimeout(sayTimer); sayTimer = null;
+  stopClip();
   try { const s = synth(); if (s && (s.speaking || s.pending)) s.cancel(); } catch { /* ignore */ }
 }
 
@@ -160,7 +241,7 @@ export function release(delay = 1500) {
   clearTimeout(releaseTimer);
   const go = () => {
     const s = synth();
-    if (delay > 0 && s && (s.speaking || s.pending || sayTimer)) { releaseTimer = setTimeout(go, 500); return; }
+    if (delay > 0 && ((s && (s.speaking || s.pending)) || sayTimer || clipSrc)) { releaseTimer = setTimeout(go, 500); return; }
     hush();
     try { if (ctx && ctx.state === 'running') ctx.suspend().catch(() => {}); } catch { /* ignore */ }
   };
@@ -185,6 +266,18 @@ export function diagnose(onLine) {
   onLine(`Sound ${soundEnabled ? 'on' : 'off'}, voice ${voiceEnabled ? 'on' : 'off'}. Audio ${ctx ? ctx.state : 'not created'}.`);
   cue('in');
   setTimeout(() => onLine(`Chime sent, audio ${ctx ? ctx.state : 'none'}.`), 300);
+  if (ctx) {
+    preloadClips();
+    Promise.all(Object.keys(CLIPS).map(loadClip)).then((all) => {
+      const n = all.filter(Boolean).length;
+      onLine(`${n} of ${all.length} recorded phrases loaded.`);
+      if (!n) return synthTest();
+      say('Inhale'); say('Lift', { interrupt: false }); say('Exhale', { interrupt: false });
+      onLine(`Playing "Inhale. Lift. Exhale." from the recordings at ${ms()}.`);
+      setTimeout(() => cue('repEnd'), 2600);
+    });
+  } else synthTest();
+  function synthTest() {
   if (!s) { onLine('This browser has no speech synthesis.'); return; }
   pickVoice();
   onLine(`${s.getVoices().length} voices, using ${voice ? voice.name : 'the default'}.`);
@@ -197,6 +290,7 @@ export function diagnose(onLine) {
   u.addEventListener('error', (e) => onLine(`Speech error: ${e.error}.`));
   setTimeout(() => { if (s.paused) s.resume(); s.speak(u); }, 400);
   setTimeout(() => { if (!started) onLine(`Speech never started (speaking ${s.speaking}, pending ${s.pending}, paused ${s.paused}).`); }, 4000);
+  }
 }
 
 // 1 s of silence as a WAV data URI (8 kHz, 8-bit mono).

@@ -90,7 +90,7 @@ function view() {
       <div class="card-title"><h2>Timer</h2><button class="btn sm" data-test-audio>Test cues</button></div>
       <pre class="audio-log small muted" data-audio-log hidden></pre>
       <div class="row"><span class="label">Sound cues<span class="small muted">a different tone per phase, a chime per rep</span></span>${sw('timer.sound', t.sound !== false)}</div>
-      <div class="row"><span class="label">Spoken phases<span class="small muted">"Inhale", "Lift", "Exhale"…</span></span>${sw('timer.voice', t.voice !== false)}</div>
+      <div class="row"><span class="label">Spoken phases<span class="small muted">"Inhale", "Lift", "Exhale"… in a recorded voice</span></span>${sw('timer.voice', t.voice !== false)}</div>
       <div class="row"><span class="label">Get-ready countdown<span class="small muted">time to pick up the right dumbbells</span></span>
         <div class="seg compact" style="width:200px">${[0, 5, 10, 15].map((n) => `<button data-set="timer.getReady|${n}" class="${(t.getReady ?? 10) === n ? 'on' : ''}">${n ? n + 's' : 'Off'}</button>`).join('')}</div></div>
       <div class="row"><span class="label">Auto-start next<span class="small muted">flow straight into the next exercise</span></span>${sw('timer.autoStart', t.autoStart !== false)}</div>
