@@ -3,7 +3,7 @@
 import { store } from '../store.js';
 import { session } from '../session.js';
 import { byKey, sequence, key as keyOf } from '../data/exercises.js';
-import { phaseById, weightLabel, repsFor, repsLabel, repSide } from '../program.js';
+import { phaseById, weightLabel, repsFor, repsLabel, repSide, kitFor } from '../program.js';
 import { heroImage, stepImages } from '../figure.js';
 import { photoKey, photoURL } from '../photos.js';
 import { esc, on, $, $$, fmtTime, confirmSheet, toast, ICONS } from '../ui.js';
@@ -76,6 +76,7 @@ function view() {
     parts.push(relaxCard(mode));
   } else {
     parts.push(head(pos, mode));
+    if (mode === 'idle' && !session.entries.length) parts.push(kitLine());
     parts.push(timerPanel(pos, mode));
     parts.push(sequences(pos));
   }
@@ -84,6 +85,16 @@ function view() {
     parts.push(`<div class="btn-row quiet"><button class="btn ghost sm" data-act="undo">Undo last</button></div>`);
   }
   return `<div class="stack">${parts.join('')}</div>`;
+}
+
+// Before the day starts: the dumbbells (and bench) the whole day needs.
+function kitLine() {
+  const s = store.settings;
+  const kit = kitFor(s.phase, s);
+  const parts = kit.dumbbells.map((d) => `<span><b>${d.n} × ${d.lb} lb</b>${d.or ? ` or two of the ${d.or} lb` : ''}</span>`);
+  if (kit.bench) parts.push('<span><b>a bench or chair</b> for the squats</span>');
+  if (!parts.length) return '';
+  return `<div class="kit"><span class="kit-t">Have ready</span>${parts.join('')}</div>`;
 }
 
 // Round bar for the current sequence, and while the timer runs, the six-exercise strip.

@@ -134,6 +134,36 @@ export function weightLabel(e, base) {
   return `${fmt(w)} lb ${e.hands}`;
 }
 
+// What to have ready for a day: each dumbbell weight with how many of it at once
+// (exercises run one after another, so the most any one of them needs), from every
+// lift in the day's plan. Sitting Tower and Lying Long take one heavy dumbbell or
+// two at half the weight: `or` names the lighter pair when it is already needed.
+// `bench` when a tower is at a level that squats to a bench or chair (2 to 4).
+export function kitFor(phaseId, settings) {
+  const need = new Map();
+  const heavy = [];
+  let bench = false;
+  const seqs = [...new Set(phaseById(phaseId).plan.map(([s]) => s))];
+  for (const s of seqs) for (const e of sequence(s)) {
+    const k = key(e);
+    if (e.n === 5 && [2, 3, 4].includes(settings.levels?.[k] || 5)) bench = true;
+    const w = weightFor(e, settings.base);
+    if (w == null) continue;
+    if (k === '1:5' || k === '3:1') heavy.push(w);
+    else need.set(w, Math.max(need.get(w) || 0, e.hands === 'each hand' ? 2 : 1));
+  }
+  const dumbbells = [...need].map(([lb, n]) => ({ lb, n }));
+  for (const w of new Set(heavy)) {
+    const half = round05(w / 2);
+    const item = { lb: w, n: 1 };
+    if ((need.get(half) || 0) >= 2) item.or = half;
+    const same = dumbbells.find((d) => d.lb === w);
+    if (!same) dumbbells.push(item); else if (item.or && !same.or) same.or = item.or;
+  }
+  dumbbells.sort((a, b) => a.lb - b.lb);
+  return { dumbbells, bench };
+}
+
 export function repsFor(e, settings) {
   if (!e.lift) return 6;
   return settings.reps === 3 ? 3 : 6;

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EXERCISES, byKey, key, repSeconds } from '../js/data/exercises.js';
-import { weightFor, slotsFor, positionFor, streakFrom, groupByDay, addDays, applySoreness, DEFAULT_SETTINGS, repsFor, repSide, dayComplete, bestStreak, programWeek, suggestedPhase } from '../js/program.js';
+import { weightFor, kitFor, slotsFor, positionFor, streakFrom, groupByDay, addDays, applySoreness, DEFAULT_SETTINGS, repsFor, repSide, dayComplete, bestStreak, programWeek, suggestedPhase } from '../js/program.js';
 import { TempoTimer } from '../js/timer.js';
 
 test('18 exercises, lifts on 1/4/5/6', () => {
@@ -104,4 +104,14 @@ test('tempo timer computes phases from elapsed time', () => {
   // jump across many phases (backgrounded): state is still right
   s = t.compute(30500); assert.equal(s.rep, 3); assert.equal(s.label, 'Lower');
   s = t.compute(28000); assert.equal(s.rep, 3); assert.equal(s.label, 'Hold');
+});
+
+test('kit for the day', () => {
+  const k = kitFor('w1', { ...DEFAULT_SETTINGS, base: 3 });
+  assert.deepEqual(k.dumbbells, [{ lb: 3, n: 2 }, { lb: 4.5, n: 2 }, { lb: 6, n: 1, or: 3 }]);
+  assert.equal(k.bench, true); // Sitting Tower at the default level 3 squats to a bench
+  const full = kitFor('w1', { ...DEFAULT_SETTINGS, base: 3, levels: { ...DEFAULT_SETTINGS.levels, '1:5': 5 } });
+  assert.equal(full.bench, false);
+  const w3 = kitFor('w3', { ...DEFAULT_SETTINGS, base: 2 });
+  assert.ok(w3.dumbbells.some((d) => d.lb === 1 && d.n === 2), 'Opening Wide and Working Hinges at 50%');
 });
