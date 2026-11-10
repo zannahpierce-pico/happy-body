@@ -4,7 +4,7 @@ import { store } from '../store.js';
 import { session } from '../session.js';
 import { byKey, sequence, key as keyOf } from '../data/exercises.js';
 import { phaseById, loadLabel, repsFor, repsLabel, repSide, kitFor, fmtW } from '../program.js';
-import { heroImage, stepImages } from '../figure.js';
+import { heroImage, stepImages, levelImages } from '../figure.js';
 import { photoKey, photoURL } from '../photos.js';
 import { esc, on, $, $$, fmtTime, confirmSheet, toast, ICONS } from '../ui.js';
 import { openExercise } from './exercise.js';
@@ -207,25 +207,41 @@ function stepAt(e, t) {
   return m ?? 0;
 }
 
-// The current step, large: every step's drawing is in the DOM (photos replace them
-// after the draw) and the tick only switches which one shows.
+// Below level 5 the level's own picture and line stand in at the steps it changes
+// (levelSteps); the level line stays under the caption throughout the exercise.
+const levelOf = (e) => store.settings.levels[keyOf(e)] || 5;
+const atLevelStep = (e, i, lv) => lv < 5 && (e.levelSteps || []).includes(i);
+
+function caption(e, i, lv) {
+  const step = `<b>Step ${i + 1} of ${e.steps.length}</b> ${esc(e.steps[i])}`;
+  return lv < 5 ? `${step}<span class="lv"><b>Level ${lv}</b> ${esc(e.levels[lv - 1])}</span>` : step;
+}
+
+// The current step, large: every step's drawing (and the level's, below level 5)
+// is in the DOM, photos replace them after the draw, and the tick only switches
+// which one shows.
 function stage(e, k, t) {
   const imgs = stepImages(e.images);
+  const lv = levelOf(e);
   const cur = stepAt(e, t);
-  const n = e.steps.length;
-  const figs = e.steps.map((_, i) => `<div class="step-fig ${i === cur ? 'cur' : ''}" data-step="${photoKey(k, 'step', i)}">${imgs[i] || ''}</div>`).join('');
+  const useLv = atLevelStep(e, cur, lv);
+  const figs = e.steps.map((_, i) => `<div class="step-fig ${i === cur && !useLv ? 'cur' : ''}" data-step="${photoKey(k, 'step', i)}">${imgs[i] || ''}</div>`).join('')
+    + (lv < 5 ? `<div class="step-fig ${useLv ? 'cur' : ''}" data-step="${photoKey(k, 'level', lv - 1)}">${levelImages(e.images)[lv - 1] || ''}</div>` : '');
   return `<button class="stage" data-ex="${k}" data-stage aria-label="Show ${esc(e.name)} details">
-    <div class="step-figs">${figs}</div>
-    <div class="step-cap" data-step-cap><b>Step ${cur + 1} of ${n}</b> ${esc(e.steps[cur])}</div>
+    <div class="step-figs" data-step-now="${cur}">${figs}</div>
+    <div class="step-cap" data-step-cap>${caption(e, cur, lv)}</div>
   </button>`;
 }
 
 function showStep(main, e, i) {
   const figs = $('[data-stage] .step-figs', main);
-  if (!figs || figs.children[i]?.classList.contains('cur')) return;
-  for (let j = 0; j < figs.children.length; j++) figs.children[j].classList.toggle('cur', j === i);
+  if (!figs || figs.dataset.stepNow === String(i)) return;
+  figs.dataset.stepNow = String(i);
+  const lv = levelOf(e);
+  const idx = atLevelStep(e, i, lv) ? e.steps.length : i; // the level's picture sits after the steps
+  for (let j = 0; j < figs.children.length; j++) figs.children[j].classList.toggle('cur', j === idx);
   const cap = $('[data-step-cap]', main);
-  if (cap) cap.innerHTML = `<b>Step ${i + 1} of ${e.steps.length}</b> ${esc(e.steps[i])}`;
+  if (cap) cap.innerHTML = caption(e, i, lv);
 }
 
 function ring(kind, inner, progress, seconds = 2) {
