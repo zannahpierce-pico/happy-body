@@ -1,5 +1,6 @@
 // Entry point: boot the store, start sync, route between tabs, keep the top bar live, register the service worker.
 import { store } from './store.js';
+import { migrateStepPhotos } from './photos.js';
 import { sync } from './sync.js';
 import { session } from './session.js';
 import { phaseById, repsFor } from './program.js';
@@ -113,6 +114,7 @@ async function boot() {
     console.error(e);
     toast('Storage could not be opened. Data may not save.', { error: true, ms: 6000 });
   }
+  migrateStepPhotos().catch((e) => console.warn('step photo migration failed', e));
   applyTheme(store.settings.theme);
   // Opened from an emailed sign-in link: take the session out of the address before routing.
   const linked = await sync.takeRedirect().catch((e) => { toast(e.network ? 'You are offline. Open the link again when connected.' : e.message, { error: true, ms: 6000 }); return null; })
