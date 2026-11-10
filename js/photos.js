@@ -43,7 +43,11 @@ export async function downscale(file, max = 1024, quality = 0.85) {
 
 // Steps were renumbered to match the book (every exercise starts at its start position, and
 // steps the data used to merge are separate again). Stored step photos keyed by the old index
-// move to the index their pose now has. Runs once per device; sync carries the moves across.
+// are copied to the index their pose now has. Copy only, never delete: a delete is a tombstone
+// that syncs to every device, and one sent mid-migration from one device removed photos the
+// others had already moved. Old indices stay valid (an import fills them with the right
+// photo). Skipped for an exercise that already has photos beyond the old count: that set is
+// the new numbering, whether imported here or synced from another device.
 const STEP_REMAP = {
   '1:1': [2, 3, 4], '1:2': [1, 2, 3], '1:3': [1, 2, 3], '1:4': [1, 2, 3], '1:5': [1, 2], '1:6': [1, 2, 3, 4],
   '2:1': [1, 2, 3], '2:2': [1, 2, 3], '2:3': [1, 2, 3], '2:4': [1, 2, 3], '2:5': [3, 4, 5, 10], '2:6': [1, 2, 3, 4],
@@ -52,15 +56,24 @@ const STEP_REMAP = {
 const REMAP_FLAG = 'hb:stepPhotos:v2';
 export async function migrateStepPhotos() {
   try { if (localStorage.getItem(REMAP_FLAG)) return; } catch { /* no localStorage: just try */ }
-  const moves = [];
-  for (const k of await store.photoKeys()) {
+  const keys = new Set(await store.photoKeys());
+  const byEx = {};
+  for (const k of keys) {
     const m = /^(\d+:\d+):step:(\d+)$/.exec(k);
-    const to = m && STEP_REMAP[m[1]]?.[Number(m[2])];
-    if (to != null && to !== Number(m[2])) moves.push({ from: k, to: photoKey(m[1], 'step', to) });
+    if (m && STEP_REMAP[m[1]]) (byEx[m[1]] ||= []).push(Number(m[2]));
   }
+  const copies = [];
+  for (const [ex, idx] of Object.entries(byEx)) {
+    const map = STEP_REMAP[ex];
+    if (idx.some((i) => i >= map.length)) continue;               // already the new numbering
+    for (const i of idx) {
+      const to = map[i];
+      if (to !== i) copies.push({ from: photoKey(ex, 'step', i), to: photoKey(ex, 'step', to) });
+    }
+  }
+  // Read every source before writing: a target can be another step's old slot (1:1 step 2 moves to 4, step 0 to 2).
   const blobs = [];
-  for (const mv of moves) { const p = await store.getPhoto(mv.from); if (p?.blob) blobs.push({ ...mv, blob: p.blob }); }
-  for (const mv of moves) await store.deletePhoto(mv.from);   // all deletes first: new keys can overlap old ones
-  for (const mv of blobs) await store.setPhoto(mv.to, mv.blob);
+  for (const c of copies) { const p = await store.getPhoto(c.from); if (p?.blob) blobs.push({ ...c, blob: p.blob }); }
+  for (const c of blobs) await store.setPhoto(c.to, c.blob);
   try { localStorage.setItem(REMAP_FLAG, '1'); } catch { /* ignore */ }
 }
