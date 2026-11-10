@@ -3,7 +3,7 @@
 
 import { store } from './store.js';
 import { byKey } from './data/exercises.js';
-import { positionFor, today, repsFor, weightFor, weightLabel, repSide, programWeek } from './program.js';
+import { positionFor, today, repsFor, weightFor, repSide, programWeek } from './program.js';
 import { TempoTimer, countdown } from './timer.js';
 import * as audio from './audio.js';
 import { keepAwake } from './wakelock.js';
@@ -128,8 +128,7 @@ class Session {
     const ready = skipReady ? 0 : (this.settings.timer.getReady || 0);
     audio.unlock({ prime: !(ready > 0) });
     if (ready > 0) {
-      const w = weightFor(e, this.settings.base);
-      audio.say(`Next: ${e.name}. ${w != null ? weightLabel(e, this.settings.base).replace('lb', 'pounds') + '.' : 'No weight.'} ${repsFor(e, this.settings)} reps.`);
+      audio.say(`Next, ${e.name}`); // weight and reps are on screen for the whole countdown
     }
     await this.touchStart();
     if (this.settings.timer.keepAwake !== false) keepAwake(true);
@@ -162,7 +161,8 @@ class Session {
       onPhase: (s) => {
         audio.cue(s.kind);
         const side = s.phaseIdx === 0 ? repSide(e, s.rep, reps) : null;
-        audio.say(side ? `${side}. ${s.label}` : s.label);
+        if (side) audio.say(side);
+        audio.say(s.label, { interrupt: !side });
       },
       onRepEnd: (rep, s) => { if (!s.done) audio.cue('repEnd'); },
       onDone: () => this.onTimerDone(e),

@@ -4,3 +4,6 @@ tests/shots/
 
 # Photographed book pages (copyrighted, reference only)
 reference/
+
+# Voice samples from picking the recording voice; only audio/say ships
+audio/samples/
