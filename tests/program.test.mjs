@@ -108,11 +108,11 @@ test('tempo timer computes phases from elapsed time', () => {
 
 test('loads from the weights on hand', () => {
   const s = { ...DEFAULT_SETTINGS, base: 3 };
-  assert.equal(loadLabel(byKey['1:1'], s), '3 lb each hand');
-  assert.equal(loadLabel(byKey['1:4'], s), '5 lb, both hands (book 4.5)');      // 5 lb beats 2.5 + 2.5 plates: fewer pieces
-  assert.equal(loadLabel(byKey['1:5'], s), '3 lb each hand');                   // two at half the weight, exact
-  assert.equal(loadLabel(byKey['1:6'], s), '5 lb each hand (book 4.5)');
-  assert.equal(loadLabel(byKey['2:1'], s), '1.25 lb plate each hand (book 1.5)');
+  assert.equal(loadLabel(byKey['1:1'], s), 'a 3 lb dumbbell in each hand');
+  assert.equal(loadLabel(byKey['1:4'], s), 'a 5 lb dumbbell in both hands (book 4.5)');      // 5 lb beats 2.5 + 2.5 plates: fewer pieces
+  assert.equal(loadLabel(byKey['1:5'], s), 'a 3 lb dumbbell in each hand');                   // two at half the weight, exact
+  assert.equal(loadLabel(byKey['1:6'], s), 'a 5 lb dumbbell in each hand (book 4.5)');
+  assert.equal(loadLabel(byKey['2:1'], s), 'a 1.25 lb plate in each hand (book 1.5)');
   assert.equal(loadLabel(byKey['1:2'], s), 'No weight');
   assert.equal(loadLabel(byKey['1:4'], { ...s, kit: [] }), '4.5 lb one dumbbell, both hands');
   assert.equal(loadFor(byKey['1:4'], { ...s, kit: [{ lb: 10, n: 2 }] }).lb, null); // nothing within a pound

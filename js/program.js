@@ -198,12 +198,14 @@ export function loadFor(e, settings) {
   return { target, lb: best.lb, hands: best.hands, items: best.use.map((i) => kit[i]), err: best.err };
 }
 
+// "a 5 lb dumbbell", "a 2.5 lb plate", "2.5 + 1.25 lb plates" (one hand's load).
 function describeItems(items) {
-  if (items.length === 1) return items[0].plate ? `${fmtW(items[0].lb)} lb plate` : `${fmtW(items[0].lb)} lb`;
+  if (items.length === 1) return items[0].plate ? `a ${fmtW(items[0].lb)} lb plate` : `a ${fmtW(items[0].lb)} lb dumbbell`;
   return `${items.map((i) => fmtW(i.lb)).join(' + ')} lb plates`;
 }
 
-// "3 lb each hand", "5 lb, both hands (book 4.5)", "1.25 lb plate each hand (book 1.5)".
+// "a 3 lb dumbbell in each hand", "a 5 lb dumbbell in both hands (book 4.5)",
+// "a 1.25 lb plate in each hand (book 1.5)". The figure is always per hand.
 export function loadLabel(e, settings) {
   const L = loadFor(e, settings);
   if (!L) return 'No weight';
@@ -212,10 +214,10 @@ export function loadLabel(e, settings) {
   const what = describeItems(L.items);
   const k = key(e);
   let how;
-  if (e.hands === 'each hand' || L.hands === 2) how = `${what} each hand`;
+  if (e.hands === 'each hand' || L.hands === 2) how = `${what} in each hand`;
   else if (k === '1:5') how = `${what} at the chin`;
-  else if (e.hands === 'one dumbbell, one arm') how = `${what}, one arm`;
-  else how = `${what}, both hands`;
+  else if (e.hands === 'one dumbbell, one arm') how = `${what} in one hand`;
+  else how = `${what} in both hands`;
   const book = L.hands === 2 && e.hands !== 'each hand' ? L.target / 2 : L.target;
   return Math.abs(L.lb - book) < 0.01 ? how : `${how} (book ${fmtW(book)})`;
 }
