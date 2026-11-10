@@ -222,6 +222,12 @@ class Session {
     this.mode = 'idle';
     this.emit('state');
   }
+  // Back to the start of the rep under way (stays paused if it was paused).
+  restartRep() {
+    if (!this.timer || this.mode !== 'running' && this.mode !== 'paused') return;
+    this.timer.restartRep();
+    this.emit('state');
+  }
   skipReady() {
     if (this.mode === 'ready' || this.mode === 'ready-paused') this.start({ skipReady: true });
   }

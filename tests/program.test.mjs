@@ -77,7 +77,7 @@ test('streaks', () => {
 test('soreness rule', () => {
   const s = { ...DEFAULT_SETTINGS, levels: { ...DEFAULT_SETTINGS.levels, '1:5': 1 } };
   const r = applySoreness(s, ['1:1', '1:5']);
-  assert.equal(r.settings.levels['1:1'], 4);
+  assert.equal(r.settings.levels['1:1'], 2); // one level down from the default of 3
   assert.equal(r.settings.levels['1:5'], 1);
   assert.equal(r.baseDropped, true);
   assert.equal(r.settings.base, 2);

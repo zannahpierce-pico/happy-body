@@ -40,6 +40,7 @@ async function act(a) {
       case 'pause': return session.pause();
       case 'resume': return session.resume();
       case 'reset': return session.reset();
+      case 'restart-rep': return session.restartRep();
       case 'skip-ready': return session.skipReady();
       case 'done': return session.done();
       case 'skip': {
@@ -158,17 +159,12 @@ function timerPanel(pos, mode) {
       <button class="btn ghost" data-act="reset" style="flex:0 0 auto">Cancel</button>
     </div>`;
   } else if (mode === 'running') {
-    acts = `<div class="btn-row">
-      <button class="btn big" data-act="pause">Pause</button>
-      <button class="btn primary big" data-act="done">Done</button>
-    </div>
-    <div class="btn-row quiet"><button class="btn ghost sm" data-act="skip">Skip</button></div>`;
+    // The timer logs the exercise itself when the last rep ends; marking it done early is the exception.
+    acts = `<button class="btn big block" data-act="pause">Pause</button>
+    <div class="btn-row quiet"><button class="btn ghost sm" data-act="done">Mark done</button><button class="btn ghost sm" data-act="skip">Skip</button></div>`;
   } else if (mode === 'paused') {
-    acts = `<div class="btn-row">
-      <button class="btn brass big" data-act="resume">Resume</button>
-      <button class="btn primary big" data-act="done">Done</button>
-    </div>
-    <div class="btn-row quiet"><button class="btn ghost sm" data-act="reset">Reset</button><button class="btn ghost sm" data-act="skip">Skip</button></div>`;
+    acts = `<button class="btn brass big block" data-act="resume">Resume</button>
+    <div class="btn-row quiet"><button class="btn ghost sm" data-act="restart-rep">Restart rep</button><button class="btn ghost sm" data-act="done">Mark done</button><button class="btn ghost sm" data-act="skip">Skip</button><button class="btn ghost sm" data-act="reset">Cancel</button></div>`;
   } else {
     acts = `<button class="btn primary big block" data-act="start">Start timer</button>
     <div class="btn-row quiet"><button class="btn ghost sm" data-act="done">Done without timer</button><button class="btn ghost sm" data-act="skip">Skip</button></div>`;
