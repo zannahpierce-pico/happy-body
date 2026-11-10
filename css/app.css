@@ -427,3 +427,5 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .kit-add { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
 .kit-add input[type="number"] { width: 84px; }
 .kit-add select { flex: 0 0 auto; }
+.step-cap .lv { display: block; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.step-cap .lv b { color: var(--accent); }
