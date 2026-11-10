@@ -75,6 +75,12 @@ class Session {
     if (!m?.startedAt || m.pausedAt || m.finishedAt) return;
     await store.setToday({ ...m, pausedAt: Date.now() });
   }
+  // Start over from zero, whatever the clock was doing. Logged exercises stay.
+  async restartClock() {
+    this.stopTimer();
+    if (this.mode === 'running' || this.mode === 'paused' || this.mode === 'ready' || this.mode === 'ready-paused') this.mode = 'idle';
+    await store.setToday({ day: this.day, startedAt: Date.now(), pausedMs: 0, pausedAt: null, relaxDoneAt: null, finishedAt: null });
+  }
   async finishClock() {
     const m = this.meta;
     if (!m?.startedAt || m.finishedAt) return;

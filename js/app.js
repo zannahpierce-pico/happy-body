@@ -68,14 +68,15 @@ function clockBlock() {
   const label = c === 'done' ? 'Session' : c === 'paused' ? 'Paused' : 'Elapsed';
   let acts = '';
   if (c === 'running') acts = btn('pause', 'Pause') + btn('done', 'Done');
-  else if (c === 'paused') acts = btn('start', 'Resume') + btn('done', 'Done');
-  else if (session.mode !== 'complete') acts = btn('start', session.entries.length ? 'Resume' : 'Start over');
+  else if (c === 'paused') acts = btn('start', 'Resume') + btn('restart', 'Start over') + btn('done', 'Done');
+  else if (session.mode !== 'complete') acts = (session.entries.length ? btn('start', 'Resume') : '') + btn('restart', 'Start over');
   return `<div class="right">${label}<br><strong class="tnum" data-elapsed>${fmtTime(session.elapsedMs())}</strong>${acts ? `<div class="clock-acts">${acts}</div>` : ''}</div>`;
 }
 
 function onClockAct(act) {
   if (act === 'start') return session.startClock();
   if (act === 'pause') return session.pauseClock();
+  if (act === 'restart') return session.restartClock();
   if (act === 'done') return session.finishClock();
 }
 
