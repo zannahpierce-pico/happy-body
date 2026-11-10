@@ -61,35 +61,47 @@ export function unlock({ prime = true } = {}) {
   }
 }
 
-function tone(freq, start, dur, { type = 'sine', vol = 0.35 } = {}) {
+// A soft mallet tap rather than a beep: a sine fundamental with a faint, quickly
+// fading partial two octaves up (a marimba's second mode), a few ms of attack and
+// a natural decay. `dur` is how long the note rings.
+function tone(freq, start, dur, { vol = 0.22 } = {}) {
   if (!ctx || !soundEnabled) return;
   const t0 = ctx.currentTime + start;
-  const o = ctx.createOscillator();
-  const g = ctx.createGain();
-  o.type = type;
-  o.frequency.setValueAtTime(freq, t0);
-  g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  o.connect(g); g.connect(ctx.destination);
-  o.start(t0); o.stop(t0 + dur + 0.05);
-  toneUntil = Math.max(toneUntil, performance.now() + (start + dur) * 1000);
+  const out = ctx.createGain();
+  out.gain.value = 1;
+  out.connect(ctx.destination);
+  const partial = (mult, level, decay) => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq * mult, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(level, t0 + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + decay);
+    o.connect(g); g.connect(out);
+    o.start(t0); o.stop(t0 + decay + 0.05);
+  };
+  partial(1, vol, dur);
+  partial(4, vol * 0.12, Math.min(dur, 0.09));
+  // Speech waits for this; the tail of the decay is inaudible, so count half of it.
+  toneUntil = Math.max(toneUntil, performance.now() + (start + dur * 0.5) * 1000);
 }
 
+// Pitches an octave or two below the old beeps; the small phases are quiet taps.
 function playCue(kind) {
   switch (kind) {
-    case 'in':      tone(523, 0, 0.12); tone(659, 0.13, 0.16); break;           // rising: breathe in
-    case 'out':     tone(659, 0, 0.12); tone(523, 0.13, 0.22); break;           // falling: let it go
-    case 'move':    tone(784, 0, 0.14, { type: 'triangle' }); break;            // single bright tick
-    case 'lower':   tone(440, 0, 0.18, { type: 'triangle' }); break;            // single low tick
-    case 'pause':   tone(880, 0, 0.06, { vol: 0.2 }); break;                    // soft tap
-    case 'stretch': tone(988, 0, 0.08, { vol: 0.25 }); break;
-    case 'hold':    tone(880, 0, 0.06, { vol: 0.2 }); tone(880, 0.1, 0.06, { vol: 0.2 }); break;
-    case 'count':   tone(880, 0, 0.08, { vol: 0.25 }); break;
-    case 'repEnd':  tone(1047, 0, 0.1, { vol: 0.3 }); tone(1319, 0.11, 0.18, { vol: 0.3 }); break;
-    case 'done':    tone(784, 0, 0.12); tone(988, 0.13, 0.12); tone(1175, 0.26, 0.3); break;
-    case 'start':   tone(659, 0, 0.1); tone(784, 0.11, 0.14); break;
-    default: tone(700, 0, 0.1);
+    case 'in':      tone(330, 0, 0.3); tone(415, 0.16, 0.4); break;             // rising: breathe in
+    case 'out':     tone(415, 0, 0.3); tone(330, 0.16, 0.5); break;             // falling: let it go
+    case 'move':    tone(523, 0, 0.3); break;                                   // single wooden tap
+    case 'lower':   tone(262, 0, 0.4); break;                                   // single low tap
+    case 'pause':   tone(659, 0, 0.12, { vol: 0.1 }); break;                    // faint tick
+    case 'stretch': tone(740, 0, 0.14, { vol: 0.12 }); break;
+    case 'hold':    tone(659, 0, 0.12, { vol: 0.1 }); tone(659, 0.14, 0.12, { vol: 0.1 }); break;
+    case 'count':   tone(440, 0, 0.2, { vol: 0.14 }); break;
+    case 'repEnd':  tone(523, 0, 0.25, { vol: 0.16 }); tone(659, 0.14, 0.4, { vol: 0.16 }); break;
+    case 'done':    tone(392, 0, 0.3); tone(523, 0.16, 0.3); tone(659, 0.32, 0.7); break;
+    case 'start':   tone(392, 0, 0.25); tone(523, 0.14, 0.4); break;
+    default: tone(440, 0, 0.25);
   }
 }
 
