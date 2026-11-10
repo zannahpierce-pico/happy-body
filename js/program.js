@@ -11,10 +11,19 @@ export const PHASES = [
 ];
 export const phaseById = (id) => PHASES.find((p) => p.id === id) || PHASES[0];
 
+// The dumbbells and plates on hand: { lb, n, plate }. Loads are built from them
+// (a dumbbell alone, a plate alone, or two plates held together in one hand), so
+// every exercise shows the nearest weight you can actually pick up. Edited in Program.
+export const DEFAULT_KIT = [
+  { lb: 1.25, n: 2, plate: true }, { lb: 2.5, n: 2, plate: true },
+  { lb: 2, n: 2 }, { lb: 3, n: 2 }, { lb: 5, n: 2 },
+];
+
 export const DEFAULT_SETTINGS = {
   version: 1,
   phase: 'w1',
   base: 3,            // lb per hand in 1:1
+  kit: DEFAULT_KIT,
   reps: 6,            // 6 = gain muscle, 3 = lose muscle or stay the same (book, Learning the Exercises)
   sex: 'f',           // affects the week-7 increment hint only
   levels: Object.fromEntries(EXERCISES.map((e) => [key(e), 3])), // start mid-way; the book has you move up from where you can
@@ -125,13 +134,136 @@ export function weightFor(e, base) {
   return round05(base * e.pct / 100);
 }
 
+// Pounds without noise: 3, 4.5, 1.25.
+export const fmtW = (x) => (Number.isInteger(x) ? String(x) : Number.isInteger(x * 2) ? x.toFixed(1) : x.toFixed(2));
+
+// The book's figure for an exercise.
 export function weightLabel(e, base) {
   const w = weightFor(e, base);
   if (w == null) return 'No weight';
-  const fmt = (x) => (Number.isInteger(x) ? String(x) : x.toFixed(x * 4 % 1 ? 2 : 1));
-  if (e.seq === 3 && e.n === 1) return `${fmt(w)} lb, or two at ${fmt(round05(w / 2) || w / 2)}`;
-  if (e.seq === 1 && e.n === 5) return `${fmt(w)} lb at the chin, or two at ${fmt(w / 2)}`;
-  return `${fmt(w)} lb ${e.hands}`;
+  if (e.seq === 3 && e.n === 1) return `${fmtW(w)} lb, or two at ${fmtW(round05(w / 2) || w / 2)}`;
+  if (e.seq === 1 && e.n === 5) return `${fmtW(w)} lb at the chin, or two at ${fmtW(w / 2)}`;
+  return `${fmtW(w)} lb ${e.hands}`;
+}
+
+// ── Loads from the weights on hand ──
+const usableKit = (settings) => (settings.kit || []).filter((k) => k && k.lb > 0 && k.n > 0);
+
+// Every per-hand load the kit can make: a dumbbell, a plate, or two plates together.
+function loadOptions(kit) {
+  const opts = [];
+  kit.forEach((it, i) => opts.push({ lb: it.lb, use: [i] }));
+  const plates = kit.map((it, i) => [it, i]).filter(([it]) => it.plate);
+  for (let a = 0; a < plates.length; a++) for (let b = a; b < plates.length; b++) {
+    if (a === b && plates[a][0].n < 2) continue;
+    opts.push({ lb: plates[a][0].lb + plates[b][0].lb, use: [plates[a][1], plates[b][1]] });
+  }
+  return opts;
+}
+
+// The option nearest `target` of which `hands` identical copies exist at once.
+// Ties go to fewer pieces, then the lighter load.
+function nearest(opts, kit, target, hands) {
+  let best = null;
+  for (const o of opts) {
+    const counts = {};
+    for (const i of o.use) counts[i] = (counts[i] || 0) + hands;
+    if (Object.entries(counts).some(([i, c]) => kit[i].n < c)) continue;
+    const err = Math.abs(o.lb - target);
+    const better = !best || err < best.err - 1e-9
+      || (Math.abs(err - best.err) < 1e-9 && (o.use.length < best.use.length || (o.use.length === best.use.length && o.lb < best.lb)));
+    if (better) best = { ...o, err };
+  }
+  return best;
+}
+
+// What to pick up for an exercise: { target, lb, hands, items, err }. `items` is
+// null when no weights are listed (then lb is the book's figure); lb is null when
+// nothing listed comes close enough to count (over 1 lb off, or nothing at all).
+export function loadFor(e, settings) {
+  const target = weightFor(e, settings.base);
+  if (target == null) return null;
+  const kit = usableKit(settings);
+  if (!kit.length) return { target, lb: target, hands: e.hands === 'each hand' ? 2 : 1, items: null, err: 0 };
+  const opts = loadOptions(kit);
+  const k = key(e);
+  const two = e.hands === 'each hand';
+  const pick = (t, hands) => { const b = nearest(opts, kit, t, hands); return b && { ...b, hands }; };
+  let best = pick(target, two ? 2 : 1);
+  if (k === '1:5' || k === '3:1') {            // one heavy dumbbell, or two at half the weight
+    const alt = pick(target / 2, 2);
+    if (alt && (!best || alt.err * 2 < best.err - 1e-9)) best = alt;
+  }
+  if (!best || best.err > 1.001) return { target, lb: null, hands: two ? 2 : 1, items: [], err: best ? best.err : null };
+  return { target, lb: best.lb, hands: best.hands, items: best.use.map((i) => kit[i]), err: best.err };
+}
+
+// "a 5 lb dumbbell", "a 2.5 lb plate", "2.5 + 1.25 lb plates" (one hand's load).
+function describeItems(items) {
+  if (items.length === 1) return items[0].plate ? `a ${fmtW(items[0].lb)} lb plate` : `a ${fmtW(items[0].lb)} lb dumbbell`;
+  return `${items.map((i) => fmtW(i.lb)).join(' + ')} lb plates`;
+}
+
+// "a 3 lb dumbbell in each hand", "a 5 lb dumbbell in both hands (book 4.5)",
+// "a 1.25 lb plate in each hand (book 1.5)". The figure is always per hand.
+export function loadLabel(e, settings) {
+  const L = loadFor(e, settings);
+  if (!L) return 'No weight';
+  if (!L.items) return weightLabel(e, settings.base);
+  if (L.lb == null) return `${weightLabel(e, settings.base)} (nothing close in your weights)`;
+  const what = describeItems(L.items);
+  const k = key(e);
+  let how;
+  if (e.hands === 'each hand' || L.hands === 2) how = `${what} in each hand`;
+  else if (k === '1:5') how = `${what} at the chin`;
+  else if (e.hands === 'one dumbbell, one arm') how = `${what} in one hand`;
+  else how = `${what} in both hands`;
+  const book = L.hands === 2 && e.hands !== 'each hand' ? L.target / 2 : L.target;
+  return Math.abs(L.lb - book) < 0.01 ? how : `${how} (book ${fmtW(book)})`;
+}
+
+// What to have ready for a day: { items: [{ lb, n, plate?, or? }], bench }. With
+// weights listed, the pieces each exercise's load uses, with how many of each at
+// once (exercises run one after another, so the most any one of them needs).
+// Without, the book's figures: Sitting Tower and Lying Long take one heavy
+// dumbbell or two at half the weight, and `or` names the lighter pair when it is
+// already needed. `bench` when a tower is at a level that squats to one (2 to 4).
+export function kitFor(phaseId, settings) {
+  const seqs = [...new Set(phaseById(phaseId).plan.map(([s]) => s))];
+  const exs = seqs.flatMap((s) => sequence(s));
+  const bench = exs.some((e) => e.n === 5 && [2, 3, 4].includes(settings.levels?.[key(e)] || 5));
+  const need = new Map();
+  if (usableKit(settings).length) {
+    for (const e of exs) {
+      const L = loadFor(e, settings);
+      if (!L?.items?.length) continue;
+      for (const it of new Set(L.items)) {
+        const id = `${it.lb}|${it.plate ? 'p' : 'd'}`;
+        const cur = need.get(id) || { lb: it.lb, n: 0, ...(it.plate ? { plate: true } : {}) };
+        cur.n = Math.max(cur.n, L.items.filter((x) => x === it).length * L.hands);
+        need.set(id, cur);
+      }
+    }
+    return { items: [...need.values()].sort((a, b) => a.lb - b.lb || (a.plate ? 1 : -1)), bench };
+  }
+  const heavy = [];
+  for (const e of exs) {
+    const w = weightFor(e, settings.base);
+    if (w == null) continue;
+    const k = key(e);
+    if (k === '1:5' || k === '3:1') heavy.push(w);
+    else need.set(w, Math.max(need.get(w) || 0, e.hands === 'each hand' ? 2 : 1));
+  }
+  const items = [...need].map(([lb, n]) => ({ lb, n }));
+  for (const w of new Set(heavy)) {
+    const half = round05(w / 2);
+    const item = { lb: w, n: 1 };
+    if ((need.get(half) || 0) >= 2) item.or = half;
+    const same = items.find((d) => d.lb === w);
+    if (!same) items.push(item); else if (item.or && !same.or) same.or = item.or;
+  }
+  items.sort((a, b) => a.lb - b.lb);
+  return { items, bench };
 }
 
 export function repsFor(e, settings) {

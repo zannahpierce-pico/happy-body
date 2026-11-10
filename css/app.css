@@ -417,3 +417,13 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 /* Workout clock in the top bar */
 .topbar .clock-acts { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 .clock-btn { border: 0; background: transparent; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+
+/* Have ready: the day's dumbbells, shown before the first exercise */
+.kit { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 14px; color: var(--muted); line-height: 1.4; }
+.kit .kit-t { font-weight: 600; color: var(--accent); }
+.kit b { color: var(--text); font-weight: 600; }
+
+/* Your weights: add a dumbbell or plate */
+.kit-add { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.kit-add input[type="number"] { width: 84px; }
+.kit-add select { flex: 0 0 auto; }

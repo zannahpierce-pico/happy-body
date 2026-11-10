@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EXERCISES, byKey, key, repSeconds } from '../js/data/exercises.js';
-import { weightFor, slotsFor, positionFor, streakFrom, groupByDay, addDays, applySoreness, DEFAULT_SETTINGS, repsFor, repSide, dayComplete, bestStreak, programWeek, suggestedPhase } from '../js/program.js';
+import { weightFor, kitFor, loadFor, loadLabel, fmtW, slotsFor, positionFor, streakFrom, groupByDay, addDays, applySoreness, DEFAULT_SETTINGS, repsFor, repSide, dayComplete, bestStreak, programWeek, suggestedPhase } from '../js/program.js';
 import { TempoTimer } from '../js/timer.js';
 
 test('18 exercises, lifts on 1/4/5/6', () => {
@@ -104,4 +104,29 @@ test('tempo timer computes phases from elapsed time', () => {
   // jump across many phases (backgrounded): state is still right
   s = t.compute(30500); assert.equal(s.rep, 3); assert.equal(s.label, 'Lower');
   s = t.compute(28000); assert.equal(s.rep, 3); assert.equal(s.label, 'Hold');
+});
+
+test('loads from the weights on hand', () => {
+  const s = { ...DEFAULT_SETTINGS, base: 3 };
+  assert.equal(loadLabel(byKey['1:1'], s), 'a 3 lb dumbbell in each hand');
+  assert.equal(loadLabel(byKey['1:4'], s), 'a 5 lb dumbbell in both hands (book 4.5)');      // 5 lb beats 2.5 + 2.5 plates: fewer pieces
+  assert.equal(loadLabel(byKey['1:5'], s), 'a 3 lb dumbbell in each hand');                   // two at half the weight, exact
+  assert.equal(loadLabel(byKey['1:6'], s), 'a 5 lb dumbbell in each hand (book 4.5)');
+  assert.equal(loadLabel(byKey['2:1'], s), 'a 1.25 lb plate in each hand (book 1.5)');
+  assert.equal(loadLabel(byKey['1:2'], s), 'No weight');
+  assert.equal(loadLabel(byKey['1:4'], { ...s, kit: [] }), '4.5 lb one dumbbell, both hands');
+  assert.equal(loadFor(byKey['1:4'], { ...s, kit: [{ lb: 10, n: 2 }] }).lb, null); // nothing within a pound
+  assert.equal(fmtW(1.25), '1.25'); assert.equal(fmtW(2.5), '2.5'); assert.equal(fmtW(3), '3');
+});
+
+test('kit for the day', () => {
+  const k = kitFor('w1', { ...DEFAULT_SETTINGS, base: 3 });
+  assert.deepEqual(k.items, [{ lb: 3, n: 2 }, { lb: 5, n: 2 }]);
+  assert.equal(k.bench, true); // Sitting Tower at the default level 3 squats to a bench
+  const book = kitFor('w1', { ...DEFAULT_SETTINGS, base: 3, kit: [] });
+  assert.deepEqual(book.items, [{ lb: 3, n: 2 }, { lb: 4.5, n: 2 }, { lb: 6, n: 1, or: 3 }]);
+  const full = kitFor('w1', { ...DEFAULT_SETTINGS, base: 3, levels: { ...DEFAULT_SETTINGS.levels, '1:5': 5 } });
+  assert.equal(full.bench, false);
+  const w3 = kitFor('w3', { ...DEFAULT_SETTINGS, base: 2 });
+  assert.ok(w3.items.some((d) => d.lb === 1.25 && d.plate && d.n === 2), 'Opening Wide and Working Hinges at 1 lb: the 1.25 plates');
 });
