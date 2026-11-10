@@ -56,10 +56,27 @@ function drawTopbar() {
     const left = cur ? minutesLeft(pos) : 0;
     sub = [week ? `Week ${week}` : esc(phase.label), left ? `about ${left} min left` : ''].filter(Boolean).join(', ');
   }
-  const ms = session.elapsedMs();
-  const right = tab.id === 'today' && session.meta?.startedAt
-    ? `<div class="right">${session.meta.finishedAt ? 'Session' : 'Elapsed'}<br><strong class="tnum" data-elapsed>${fmtTime(ms)}</strong></div>` : '';
-  $('#topbar').innerHTML = `<div><h1>${esc(title)}</h1><div class="sub">${sub}</div></div>${right}`;
+  $('#topbar').innerHTML = `<div><h1>${esc(title)}</h1><div class="sub">${sub}</div></div>${tab.id === 'today' ? clockBlock() : ''}`;
+}
+
+// The workout clock at the top right: Start workout, then Pause / Resume and
+// Done. Starting an exercise starts it too, and pausing one pauses it.
+function clockBlock() {
+  const c = session.clock;
+  const btn = (act, label) => `<button class="clock-btn" data-clock="${act}">${label}</button>`;
+  if (c === 'off') return `<div class="right">${btn('start', 'Start workout')}</div>`;
+  const label = c === 'done' ? 'Session' : c === 'paused' ? 'Paused' : 'Elapsed';
+  let acts = '';
+  if (c === 'running') acts = btn('pause', 'Pause') + btn('done', 'Done');
+  else if (c === 'paused') acts = btn('start', 'Resume') + btn('done', 'Done');
+  else if (session.mode !== 'complete') acts = btn('start', session.entries.length ? 'Resume' : 'Start over');
+  return `<div class="right">${label}<br><strong class="tnum" data-elapsed>${fmtTime(session.elapsedMs())}</strong>${acts ? `<div class="clock-acts">${acts}</div>` : ''}</div>`;
+}
+
+function onClockAct(act) {
+  if (act === 'start') return session.startClock();
+  if (act === 'pause') return session.pauseClock();
+  if (act === 'done') return session.finishClock();
 }
 
 // Minutes still to go today, from the tempo of every remaining slot.
@@ -120,6 +137,7 @@ async function boot() {
   const linked = await sync.takeRedirect().catch((e) => { toast(e.network ? 'You are offline. Open the link again when connected.' : e.message, { error: true, ms: 6000 }); return null; })
     || (sync.pendingAttach ? sync.user : null);
   drawNav();
+  $('#topbar').addEventListener('click', (e) => { const b = e.target.closest('[data-clock]'); if (b) onClockAct(b.dataset.clock)?.catch?.((err) => console.warn(err)); });
   route();
   // A sign-in link opened in a tab that already has the app: start over so boot reads it.
   window.addEventListener('hashchange', () => { if (/^#(access_token|error)=/.test(location.hash)) location.reload(); else route(); });

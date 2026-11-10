@@ -413,3 +413,7 @@ input[type="date"], input[type="number"], input[type="email"], input[type="passw
 .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .compare .ph { margin-bottom: 6px; }
 .audio-log { white-space: pre-wrap; font: inherit; margin: 0 0 8px; }
+
+/* Workout clock in the top bar */
+.topbar .clock-acts { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+.clock-btn { border: 0; background: transparent; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }

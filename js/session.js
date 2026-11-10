@@ -39,10 +39,50 @@ class Session {
   get exercise() { const c = this.position.current; return c ? byKey[c.key] : null; }
   get week() { return programWeek(this.settings.programStart, this.day); }
 
+  // The workout clock: today's record holds startedAt, pausedMs (time paused so
+  // far), pausedAt (while paused) and finishedAt. Starting an exercise starts or
+  // resumes it; the top bar has Start, Pause, Resume and Done.
   elapsedMs() {
     const m = this.meta;
     if (!m?.startedAt) return 0;
-    return (m.finishedAt || Date.now()) - m.startedAt;
+    return (m.finishedAt || m.pausedAt || Date.now()) - m.startedAt - (m.pausedMs || 0);
+  }
+  get clock() {
+    const m = this.meta;
+    if (!m?.startedAt) return 'off';
+    return m.finishedAt ? 'done' : m.pausedAt ? 'paused' : 'running';
+  }
+  async startClock() {
+    const m = this.meta;
+    if (!m?.startedAt) {
+      if (!this.settings.programStart) await store.setSettings({ programStart: this.day });
+      await store.setToday({ day: this.day, startedAt: Date.now(), pausedMs: 0, pausedAt: null, relaxDoneAt: null, finishedAt: null });
+    } else if (m.finishedAt && !this.entries.length) {
+      // A false start: nothing logged, so begin again from zero.
+      await store.setToday({ day: this.day, startedAt: Date.now(), pausedMs: 0, pausedAt: null, relaxDoneAt: null, finishedAt: null });
+    } else if (m.finishedAt || m.pausedAt) {
+      // Resume: the stopped stretch counts as a pause.
+      const since = m.pausedAt || m.finishedAt;
+      await store.setToday({ ...m, pausedMs: (m.pausedMs || 0) + (Date.now() - since), pausedAt: null, finishedAt: null, relaxDoneAt: null });
+    }
+  }
+  async pauseClock() {
+    if (this.mode === 'running' || this.mode === 'ready') this.pause(); // pauses the clock too
+    else await this.holdClock();
+  }
+  async holdClock() {
+    const m = this.meta;
+    if (!m?.startedAt || m.pausedAt || m.finishedAt) return;
+    await store.setToday({ ...m, pausedAt: Date.now() });
+  }
+  async finishClock() {
+    const m = this.meta;
+    if (!m?.startedAt || m.finishedAt) return;
+    this.stopTimer();
+    if (this.mode === 'running' || this.mode === 'paused' || this.mode === 'ready' || this.mode === 'ready-paused') this.mode = 'idle';
+    const now = Date.now();
+    const pausedMs = (m.pausedMs || 0) + (m.pausedAt ? now - m.pausedAt : 0);
+    await store.setToday({ ...m, pausedMs, pausedAt: null, finishedAt: now });
   }
 
   refresh() {
@@ -59,14 +99,7 @@ class Session {
     this.emit('state');
   }
 
-  async touchStart() {
-    const m = this.meta;
-    if (!m?.startedAt) {
-      const patch = { day: this.day, startedAt: Date.now(), relaxDoneAt: null, finishedAt: null };
-      if (!this.settings.programStart) await store.setSettings({ programStart: this.day });
-      await store.setToday(patch);
-    }
-  }
+  async touchStart() { await this.startClock(); }
 
   stopTimer() {
     if (this.timer) { this.timer.stop(); this.timer = null; }
@@ -166,6 +199,7 @@ class Session {
     keepAwake(false);
     this.mode = this.mode === 'ready' ? 'ready-paused' : 'paused';
     this.emit('state');
+    this.holdClock();
   }
   resume() {
     if (!this.timer) return;
@@ -174,6 +208,7 @@ class Session {
     this.timer.resume();
     this.mode = this.mode === 'ready-paused' ? 'ready' : 'running';
     this.emit('state');
+    this.startClock();
   }
   // Abandon the current timer without logging.
   reset() {
@@ -228,7 +263,7 @@ class Session {
     if (!entries.length) return;
     this.stopTimer();
     await store.deleteEntries([entries[entries.length - 1].id]);
-    if (this.meta?.finishedAt || this.meta?.relaxDoneAt) await store.setToday({ ...this.meta, finishedAt: null, relaxDoneAt: null });
+    if (this.meta?.finishedAt || this.meta?.relaxDoneAt) await this.startClock(); // the clock runs again (or starts over if nothing is left)
     this.mode = 'idle';
     this.emit('state');
   }
@@ -252,8 +287,10 @@ class Session {
   async finishRelax() {
     this.stopTimer();
     audio.cue('done');
-    const m = this.meta || { day: this.day, startedAt: Date.now() };
-    await store.setToday({ ...m, relaxDoneAt: Date.now(), finishedAt: Date.now() });
+    const now = Date.now();
+    const m = this.meta || { day: this.day, startedAt: now, pausedMs: 0 };
+    const pausedMs = (m.pausedMs || 0) + (m.pausedAt ? now - m.pausedAt : 0);
+    await store.setToday({ ...m, pausedMs, pausedAt: null, relaxDoneAt: now, finishedAt: now });
     this.mode = 'complete';
     this.emit('state');
   }
