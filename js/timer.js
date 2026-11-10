@@ -74,6 +74,18 @@ export class TempoTimer {
 
   resume() { this.start(); }
 
+  // Back to the start of the rep under way. Keeps running or paused as it was;
+  // the first phase fires again on the next tick.
+  restartRep() {
+    const s = this.compute(this.elapsed());
+    this.offset = (s.rep - 1) * this.repMs;
+    this.startedAt = Date.now();
+    this.lastKey = null;
+    this.finished = false;
+    this.state = this.compute(this.offset);
+    this.onUpdate(this.state);
+  }
+
   stop() {
     this.running = false;
     this.finished = true;

@@ -78,7 +78,7 @@ test('state round-trips through records', () => {
   const back = fromRecords(recs);
   assert.equal(back.settings.base, 7);
   assert.equal(back.settings.levels['2:3'], 2);
-  assert.equal(back.settings.levels['1:1'], 5);
+  assert.equal(back.settings.levels['1:1'], 3);
   assert.equal(back.settings.timer.sound, false);
   assert.deepEqual(back.today, s.today);
   assert.equal(back.progress.standards.lean.target, 22);

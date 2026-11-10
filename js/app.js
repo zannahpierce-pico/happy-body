@@ -5,7 +5,7 @@ import { sync } from './sync.js';
 import { session } from './session.js';
 import { phaseById, repsFor } from './program.js';
 import { byKey } from './data/exercises.js';
-import { $, esc, fmtTime, ICONS, toast } from './ui.js';
+import { $, esc, fmtTime, ICONS, toast, confirmSheet } from './ui.js';
 import * as todayView from './views/today.js';
 import * as programView from './views/program.js';
 import * as progressView from './views/progress.js';
@@ -76,8 +76,30 @@ function clockBlock() {
 function onClockAct(act) {
   if (act === 'start') return session.startClock();
   if (act === 'pause') return session.pauseClock();
-  if (act === 'restart') return session.restartClock();
+  if (act === 'restart') return startOver();
   if (act === 'done') return session.finishClock();
+}
+
+// Start the day's workout over: back to the first exercise, clock at zero.
+async function startOver() {
+  const n = session.entries.length;
+  if (!n) return session.restartClock();
+  const ok = await confirmSheet({ title: 'Start today over?', body: `Removes the ${n} exercise${n === 1 ? '' : 's'} logged today and resets the clock. The first exercise comes up again.`, okLabel: 'Start over', danger: true });
+  if (ok) await session.clearToday();
+}
+
+// Levels used to default to 5, the full movement; the book has you start where
+// you can and move up. One pass: a level still at 5 that was never changed on
+// any device (no sync stamp) moves to the new default of 3.
+async function migrateLevels() {
+  try { if (localStorage.getItem('hb:levels:v3')) return; } catch { /* no localStorage: just try */ }
+  const patch = {};
+  for (const [k, v] of Object.entries(store.settings.levels || {})) {
+    const c = store.syncMeta?.clock?.[`setting:levels.${k}`];
+    if (v === 5 && (!c || c[0] === 0)) patch[k] = 3;
+  }
+  if (Object.keys(patch).length) await store.setSettings({ levels: patch });
+  try { localStorage.setItem('hb:levels:v3', '1'); } catch { /* ignore */ }
 }
 
 // Minutes still to go today, from the tempo of every remaining slot.
@@ -155,6 +177,7 @@ async function boot() {
     toast('Storage could not be opened. Data may not save.', { error: true, ms: 6000 });
   }
   migrateStepPhotos().catch((e) => console.warn('step photo migration failed', e));
+  await migrateLevels().catch((e) => console.warn('level migration failed', e));
   applyTheme(store.settings.theme);
   // Opened from an emailed sign-in link: take the session out of the address before routing.
   const linked = await sync.takeRedirect().catch((e) => { toast(e.network ? 'You are offline. Open the link again when connected.' : e.message, { error: true, ms: 6000 }); return null; })

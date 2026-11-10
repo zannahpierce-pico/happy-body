@@ -17,7 +17,7 @@ export const DEFAULT_SETTINGS = {
   base: 3,            // lb per hand in 1:1
   reps: 6,            // 6 = gain muscle, 3 = lose muscle or stay the same (book, Learning the Exercises)
   sex: 'f',           // affects the week-7 increment hint only
-  levels: Object.fromEntries(EXERCISES.map((e) => [key(e), 5])),
+  levels: Object.fromEntries(EXERCISES.map((e) => [key(e), 3])), // start mid-way; the book has you move up from where you can
   programStart: null, // ISO date string of day 1
   timer: {
     sound: true,
