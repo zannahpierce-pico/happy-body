@@ -4,7 +4,7 @@ import { store } from '../store.js';
 import { session } from '../session.js';
 import { byKey, sequence, key as keyOf } from '../data/exercises.js';
 import { phaseById, weightLabel, repsFor, repsLabel, repSide } from '../program.js';
-import { heroImage } from '../figure.js';
+import { heroImage, stepImages } from '../figure.js';
 import { photoKey, photoURL } from '../photos.js';
 import { esc, on, $, $$, fmtTime, confirmSheet, toast, ICONS } from '../ui.js';
 import { openExercise } from './exercise.js';
@@ -133,7 +133,8 @@ function timerPanel(pos, mode) {
   const ready = mode === 'ready' || mode === 'ready-paused';
   const compact = running || ready;
 
-  let body;
+  // The ring sits beside the current step's picture; the rep dots and tempo strip go under both.
+  let body = '', below = '';
   if (ready) {
     body = ring('k-count', `
       <div class="phase" data-phase>Get ready</div>
@@ -143,11 +144,11 @@ function timerPanel(pos, mode) {
     body = ring(`k-${t.kind}`, `
       <div class="phase" data-phase>${esc(t.label)}</div>
       <div class="count" data-count>${t.remaining}</div>
-      <div class="rep" data-rep>${repLine(e, t, reps)}</div>`, t.repProgress, t.phaseSeconds)
-      + `<div class="rep-dots ${reps > 6 ? 'many' : ''}" data-dots>${Array.from({ length: reps }, (_, i) => `<i class="${i + 1 < t.rep ? 'done' : i + 1 === t.rep ? 'cur' : ''}">${i + 1}</i>`).join('')}</div>`
+      <div class="rep" data-rep>${repLine(e, t, reps)}</div>`, t.repProgress, t.phaseSeconds);
+    below = `<div class="rep-dots ${reps > 6 ? 'many' : ''}" data-dots>${Array.from({ length: reps }, (_, i) => `<i class="${i + 1 < t.rep ? 'done' : i + 1 === t.rep ? 'cur' : ''}">${i + 1}</i>`).join('')}</div>`
       + track(e, t);
   } else {
-    body = track(e, null);
+    below = track(e, null);
   }
 
   let acts;
@@ -186,9 +187,38 @@ function timerPanel(pos, mode) {
       </div>
       <button class="hero" data-ex="${k}" aria-label="Show ${esc(e.name)} details" data-hero="${photoKey(k, 'step', 1)}">${heroImage(e.images)}</button>
     </div>
-    ${body}
+    ${compact ? `<div class="stage-wrap">${stage(e, k, running ? t : null)}${body}</div>` : ''}${below}
     <div class="acts">${acts}</div>
   </section>`;
+}
+
+// Which step the timer is on: stepOf maps each phase to a step, or to several
+// steps spread over that phase's seconds. Before the timer runs, the start position.
+function stepAt(e, t) {
+  const m = t && e.stepOf ? e.stepOf[t.phaseIdx] : 0;
+  if (Array.isArray(m)) return m[Math.min(m.length - 1, Math.floor(t.phaseProgress * m.length))];
+  return m ?? 0;
+}
+
+// The current step, large: every step's drawing is in the DOM (photos replace them
+// after the draw) and the tick only switches which one shows.
+function stage(e, k, t) {
+  const imgs = stepImages(e.images);
+  const cur = stepAt(e, t);
+  const n = e.steps.length;
+  const figs = e.steps.map((_, i) => `<div class="step-fig ${i === cur ? 'cur' : ''}" data-step="${photoKey(k, 'step', i)}">${imgs[i] || ''}</div>`).join('');
+  return `<button class="stage" data-ex="${k}" data-stage aria-label="Show ${esc(e.name)} details">
+    <div class="step-figs">${figs}</div>
+    <div class="step-cap" data-step-cap><b>Step ${cur + 1} of ${n}</b> ${esc(e.steps[cur])}</div>
+  </button>`;
+}
+
+function showStep(main, e, i) {
+  const figs = $('[data-stage] .step-figs', main);
+  if (!figs || figs.children[i]?.classList.contains('cur')) return;
+  for (let j = 0; j < figs.children.length; j++) figs.children[j].classList.toggle('cur', j === i);
+  const cap = $('[data-step-cap]', main);
+  if (cap) cap.innerHTML = `<b>Step ${i + 1} of ${e.steps.length}</b> ${esc(e.steps[i])}`;
 }
 
 function ring(kind, inner, progress, seconds = 2) {
@@ -234,6 +264,7 @@ function tick(main, t) {
   const e = session.exercise;
   if (!e) return;
   const reps = repsFor(e, store.settings);
+  showStep(main, e, stepAt(e, t));
   const ph = $('[data-phase]', el);
   if (ph.textContent !== t.label) {
     ph.textContent = t.label;
@@ -360,8 +391,8 @@ function dayRecap() {
 
 // After each draw, swap generated drawings for stored photos where they exist.
 async function afterDraw(main) {
-  for (const el of $$('[data-thumb],[data-hero]', main)) {
-    const key = el.dataset.thumb || el.dataset.hero;
+  for (const el of $$('[data-thumb],[data-hero],[data-step]', main)) {
+    const key = el.dataset.thumb || el.dataset.hero || el.dataset.step;
     if (!key) continue;
     const url = await photoURL(key);
     if (!url || !el.isConnected) continue;
