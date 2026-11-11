@@ -29,8 +29,11 @@ function route() {
   if (current === tab.id) return;
   if (cleanup) { try { cleanup(); } catch (e) { console.error(e); } }
   current = tab.id;
-  const main = $('#main');
-  main.innerHTML = '';
+  // A fresh element per visit: each view puts its click handlers on it, and on a
+  // reused one they would pile up (one tap opening the same sheet several times).
+  const old = $('#main');
+  const main = old.cloneNode(false);
+  old.replaceWith(main);
   cleanup = tab.view.render(main);
   for (const b of $('#nav').children) b.classList.toggle('on', b.dataset.tab === tab.id);
   window.scrollTo(0, 0);

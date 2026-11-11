@@ -149,7 +149,7 @@ function timerPanel(pos, mode) {
   let body = '', below = '';
   if (ready) {
     body = ring('k-count', `
-      <div class="phase" data-phase>Get ready</div>
+      <div class="phase" data-phase>${mode === 'ready-paused' ? 'Paused' : 'Get ready'}</div>
       <div class="count" data-count>${t ? t.remaining : s.timer.getReady}</div>
       <div class="rep">${esc(repsLabel(e, s))}</div>`, 0);
   } else if (running && t) {
@@ -165,10 +165,12 @@ function timerPanel(pos, mode) {
 
   let acts;
   if (ready) {
+    // Pause holds the countdown (and the workout clock) before the exercise begins.
     acts = `<div class="btn-row">
+      ${mode === 'ready' ? '<button class="btn big" data-act="pause">Pause</button>' : '<button class="btn brass big" data-act="resume">Resume</button>'}
       <button class="btn primary big" data-act="skip-ready">Start now</button>
-      <button class="btn ghost" data-act="reset" style="flex:0 0 auto">Cancel</button>
-    </div>`;
+    </div>
+    <div class="btn-row quiet"><button class="btn ghost sm" data-act="skip">Skip</button><button class="btn ghost sm" data-act="reset">Cancel</button></div>`;
   } else if (mode === 'running') {
     // The timer logs the exercise itself when the last rep ends; marking it done early is the exception.
     acts = `<button class="btn big block" data-act="pause">Pause</button>

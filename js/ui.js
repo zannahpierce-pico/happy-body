@@ -27,7 +27,10 @@ export function sheet(innerHTML, { onClose } = {}) {
   const back = document.createElement('div');
   back.className = 'sheet-backdrop';
   back.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${innerHTML}</div>`;
-  const close = () => { if (!back.isConnected) return; back.remove(); document.body.style.overflow = ''; onClose?.(); };
+  const close = () => { if (!back.isConnected) return; back.remove(); document.removeEventListener('keydown', onKey); if (!$('.sheet-backdrop')) document.body.style.overflow = ''; onClose?.(); };
+  // Escape closes the sheet on top (not one under it, nor a photo viewer over it).
+  const onKey = (e) => { if (e.key === 'Escape' && !$('.viewer') && back === $$('.sheet-backdrop').pop()) close(); };
+  document.addEventListener('keydown', onKey);
   back.addEventListener('click', (e) => { if (e.target === back) close(); });
   on(back, 'click', '[data-close]', close);
   document.body.appendChild(back);
@@ -44,7 +47,7 @@ export function confirmSheet({ title, body, okLabel = 'OK', danger = false, canc
         <button class="btn" data-close>${esc(cancelLabel)}</button>
         <button class="btn ${danger ? 'danger' : 'primary'}" data-ok>${esc(okLabel)}</button>
       </div>`, { onClose: () => resolve(false) });
-    $('[data-ok]', s.el).addEventListener('click', () => { resolve(true); s.el.parentElement.remove(); document.body.style.overflow = ''; });
+    $('[data-ok]', s.el).addEventListener('click', () => { resolve(true); s.close(); }); // the later resolve(false) from onClose is a no-op
   });
 }
 
