@@ -222,6 +222,28 @@ export function loadLabel(e, settings) {
   return Math.abs(L.lb - book) < 0.01 ? how : `${how} (book ${fmtW(book)})`;
 }
 
+// The load as phrases to say during get-ready: ["A 5 pound dumbbell", "in each
+// hand"], ["2.5 and 1.25 pound plates", "in each hand"], ["No weight"]. Split so
+// each part can be a recorded clip (data/clips.js); the book's figure is left out.
+export function loadSpeech(e, settings) {
+  const L = loadFor(e, settings);
+  if (!L) return ['No weight'];
+  if (!L.items || L.lb == null) {
+    return [weightLabel(e, settings.base).replace(/([\d.]+) lb/g, (m, n) => `${n} ${n === '1' ? 'pound' : 'pounds'}`)];
+  }
+  const it = L.items;
+  const what = it.length === 1
+    ? `A ${fmtW(it[0].lb)} pound ${it[0].plate ? 'plate' : 'dumbbell'}`
+    : `${it.map((i) => i.lb).sort((a, b) => a - b).map(fmtW).join(' and ')} pound plates`;
+  const k = key(e);
+  let how;
+  if (e.hands === 'each hand' || L.hands === 2) how = 'in each hand';
+  else if (k === '1:5') how = 'at the chin';
+  else if (e.hands === 'one dumbbell, one arm') how = 'in one hand';
+  else how = 'in both hands';
+  return [what, how];
+}
+
 // What to have ready for a day: { items: [{ lb, n, plate?, or? }], bench }. With
 // weights listed, the pieces each exercise's load uses, with how many of each at
 // once (exercises run one after another, so the most any one of them needs).

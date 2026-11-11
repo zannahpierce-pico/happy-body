@@ -56,4 +56,20 @@ export const CLIPS = {
   'Next, Working Hinges': 'next-3-4',
   'Next, Power Tower': 'next-3-5',
   'Next, Final Bow': 'next-3-6',
+  // What to pick up, said after the get-ready line (program.js loadSpeech): the
+  // load, then where it goes. Only the default weights are recorded; any other
+  // load is spoken whole by speech synthesis. Sent capitalised ("In each hand.").
+  'A 2 pound dumbbell': 'load-d-2',
+  'A 3 pound dumbbell': 'load-d-3',
+  'A 5 pound dumbbell': 'load-d-5',
+  'A 1.25 pound plate': 'load-p-1-25',
+  'A 2.5 pound plate': 'load-p-2-5',
+  '1.25 and 1.25 pound plates': 'load-pp-1-25-1-25',
+  '1.25 and 2.5 pound plates': 'load-pp-1-25-2-5',
+  '2.5 and 2.5 pound plates': 'load-pp-2-5-2-5',
+  'in each hand': 'how-each-hand',
+  'in both hands': 'how-both-hands',
+  'in one hand': 'how-one-hand',
+  'at the chin': 'how-chin',
+  'No weight': 'no-weight',
 };

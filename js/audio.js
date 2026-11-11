@@ -123,7 +123,8 @@ export function cue(kind) {
 // audio context. Leading and trailing silence is measured at decode time so the
 // word lands on the beat whatever padding the recording has.
 const clips = new Map();     // text → Promise<{ buffer, start, dur } | null>
-let clipSrc = null;          // the clip playing now
+let clipSrc = null;          // the last clip scheduled
+const clipSrcs = new Set();  // every clip playing or queued
 let clipEndAt = 0;           // context time when it ends
 
 function loadClip(text) {
@@ -162,14 +163,16 @@ function preloadClips() {
 }
 
 function stopClip() {
-  if (clipSrc) { try { clipSrc.stop(); } catch { /* already ended */ } clipSrc = null; }
+  for (const src of clipSrcs) { try { src.stop(); } catch { /* already ended */ } }
+  clipSrcs.clear(); clipSrc = null;
   clipEndAt = 0;
 }
 
 // Play a phrase's clip now, or after the one playing when `interrupt` is false.
 // Resolves false when there is no usable clip, so the caller can fall back.
-async function playClip(text, interrupt) {
+async function playClip(text, interrupt, gen = sayGen) {
   const c = await loadClip(text);
+  if (gen !== sayGen) return true;   // interrupted while loading
   if (!c || !ctx || !voiceEnabled || document.hidden) return !!c && (!voiceEnabled || document.hidden);
   wake();
   if (interrupt) stopClip();
@@ -180,8 +183,8 @@ async function playClip(text, interrupt) {
   g.gain.value = c.gain;
   src.connect(g); g.connect(ctx.destination);
   src.start(at, c.start, c.dur);
-  src.onended = () => { if (clipSrc === src) clipSrc = null; };
-  clipSrc = src;
+  src.onended = () => { clipSrcs.delete(src); if (clipSrc === src) clipSrc = null; };
+  clipSrc = src; clipSrcs.add(src);
   clipEndAt = at + c.dur;
   return true;
 }
@@ -196,13 +199,37 @@ function keep(u) {
 }
 
 let sayTimer = null;
+let clipQueue = Promise.resolve();   // settles once the latest clip is scheduled
+let sayGen = 0;                      // bumped by anything that interrupts
+export const hasClip = (text) => !!CLIPS[text];
 export function say(text, opts = {}) {
   if (!voiceEnabled || !text || document.hidden) return;
+  const interrupt = opts.interrupt !== false;
+  if (interrupt) sayGen++;
   if (CLIPS[text] && ctx) {
-    playClip(text, opts.interrupt !== false).then((ok) => { if (!ok) speak(text, opts); });
+    if (interrupt) hushSpeech();   // a queued synthesized phrase must not talk over the clip
+    // Queued clips are scheduled in the order asked for, however long each takes
+    // to load, and dropped if something interrupts before their turn.
+    const gen = sayGen;
+    clipQueue = (interrupt ? Promise.resolve() : clipQueue)
+      .then(() => (gen === sayGen ? playClip(text, interrupt, gen) : true))
+      .then((ok) => { if (!ok) speak(text, opts); });
     return;
   }
-  speak(text, opts);
+  if (interrupt) { speak(text, opts); return; }
+  // Queued behind a clip: wait until it is scheduled so speak() knows when it ends.
+  const gen = sayGen;
+  clipQueue.then(() => { if (gen === sayGen) speak(text, opts); });
+}
+// Several phrases in a row, after whatever is playing. Recorded clips when every
+// part has one; otherwise one synthesized sentence, so voices never alternate.
+export function sayAll(parts) {
+  if (parts.every(hasClip)) for (const p of parts) say(p, { interrupt: false });
+  else say(parts.join(', '), { interrupt: false });
+}
+function hushSpeech() {
+  clearTimeout(sayTimer); sayTimer = null;
+  try { const s = synth(); if (s && (s.speaking || s.pending)) s.cancel(); } catch { /* ignore */ }
 }
 function speak(text, { interrupt = true, rate = 1.05 } = {}) {
   const s = synth();
@@ -220,15 +247,17 @@ function speak(text, { interrupt = true, rate = 1.05 } = {}) {
     if (s.paused) s.resume();
     // Speaking right after cancel() is silently dropped on iOS, and speech that
     // starts on top of a tone cuts the tone off: wait for both to clear.
-    const wait = Math.max(interrupt && busy ? 80 : 0, toneUntil - performance.now() + 30);
+    // A queued phrase also waits for the recorded clip before it.
+    const clipLeft = !interrupt && ctx && clipEndAt > ctx.currentTime ? (clipEndAt - ctx.currentTime) * 1000 + 150 : 0;
+    const wait = Math.max(interrupt && busy ? 80 : 0, toneUntil - performance.now() + 30, clipLeft);
     if (wait > 0) sayTimer = setTimeout(() => { sayTimer = null; s.speak(u); wake(); }, wait);
     else { s.speak(u); wake(); }
   } catch { /* ignore */ }
 }
 export function hush() {
-  clearTimeout(sayTimer); sayTimer = null;
+  sayGen++;
   stopClip();
-  try { const s = synth(); if (s && (s.speaking || s.pending)) s.cancel(); } catch { /* ignore */ }
+  hushSpeech();
 }
 
 // Give the phone's audio back (so a podcast or music can play) once the app has
