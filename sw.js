@@ -1,6 +1,6 @@
 // Service worker: precache everything on install, serve cache-first, and tell the
 // page when a new version is waiting. Bump VERSION whenever any file changes.
-const VERSION = 'hb-v2.1.24';
+const VERSION = 'hb-v2.1.25';
 const ASSETS = [
   './',
   './index.html',
@@ -51,6 +51,19 @@ const ASSETS = [
   './audio/say/next-3-4.mp3',
   './audio/say/next-3-5.mp3',
   './audio/say/next-3-6.mp3',
+  './audio/say/load-d-2.mp3',
+  './audio/say/load-d-3.mp3',
+  './audio/say/load-d-5.mp3',
+  './audio/say/load-p-1-25.mp3',
+  './audio/say/load-p-2-5.mp3',
+  './audio/say/load-pp-1-25-1-25.mp3',
+  './audio/say/load-pp-1-25-2-5.mp3',
+  './audio/say/load-pp-2-5-2-5.mp3',
+  './audio/say/how-each-hand.mp3',
+  './audio/say/how-both-hands.mp3',
+  './audio/say/how-one-hand.mp3',
+  './audio/say/how-chin.mp3',
+  './audio/say/no-weight.mp3',
   './audio/say/pause.mp3',
   './audio/say/press.mp3',
   './audio/say/raise.mp3',

@@ -3,7 +3,7 @@
 
 import { store } from './store.js';
 import { byKey } from './data/exercises.js';
-import { positionFor, today, repsFor, weightFor, loadFor, repSide, programWeek } from './program.js';
+import { positionFor, today, repsFor, weightFor, loadFor, loadSpeech, repSide, programWeek } from './program.js';
 import { TempoTimer, countdown } from './timer.js';
 import * as audio from './audio.js';
 import { keepAwake } from './wakelock.js';
@@ -132,9 +132,13 @@ class Session {
     this.stopTimer();
     this.configureAudio();
     const ready = skipReady ? 0 : (this.settings.timer.getReady || 0);
-    audio.unlock({ prime: !(ready > 0) });
+    // What to pick up, said after "Next, …". A load with no recording is
+    // synthesized a moment after the tap, which Safari only allows once primed.
+    const load = ready > 0 ? loadSpeech(e, this.settings) : [];
+    audio.unlock({ prime: !(ready > 0) || !load.every(audio.hasClip) });
     if (ready > 0) {
-      audio.say(`Next, ${e.name}`); // weight and reps are on screen for the whole countdown
+      audio.say(`Next, ${e.name}`);
+      audio.sayAll(load);
     }
     await this.touchStart();
     if (this.settings.timer.keepAwake !== false) keepAwake(true);
