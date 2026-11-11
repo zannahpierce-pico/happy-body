@@ -8,15 +8,32 @@ let audioLog = '';
 
 export function render(main) {
   const showLog = () => { const o = $('[data-audio-log]', main); if (o && audioLog) { o.hidden = false; o.textContent = audioLog; } };
-  const draw = () => { main.innerHTML = view(); fillEstimate(main); fillVersion(main); showLog(); };
+  let hintShown = null, accountShown = null;
+  const draw = () => { main.innerHTML = view(); hintShown = null; accountShown = accountCard(); fillEstimate(main); fillVersion(main); showLog(); };
   draw();
   // Saves and photo arrivals only touch the save line and the storage figure, so
   // update those in place: a full redraw on each of them made the page flicker
   // while sync downloaded photos one by one, and could drop a file being picked.
-  let estTimer = null;
-  const refresh = () => {
+  // The save line only changes when its text does, and "Saving…" shows only for
+  // a write that takes a while: sync stores photos in quick succession, and
+  // flipping between "Saving…" and "Saved" for each one made the line flash.
+  let estTimer = null, savingTimer = null;
+  const paintHint = () => {
     const h = $('[data-save-hint]', main);
-    if (h) h.innerHTML = saveHint();
+    const html = saveHint();
+    if (h && html !== hintShown) { h.innerHTML = html; hintShown = html; }
+  };
+  // Same for the account card: sync changes state several times a cycle.
+  const paintAccount = () => {
+    const a = $('[data-account]', main);
+    const html = accountCard();
+    if (a && html !== accountShown) { a.innerHTML = html; accountShown = html; }
+  };
+  const refresh = () => {
+    if (store.status.pending && !store.status.error) {
+      if (!savingTimer) savingTimer = setTimeout(() => { savingTimer = null; paintHint(); }, 800);
+    } else { clearTimeout(savingTimer); savingTimer = null; paintHint(); }
+    paintAccount();
     clearTimeout(estTimer);
     estTimer = setTimeout(() => fillEstimate(main), 400);
   };
@@ -24,7 +41,7 @@ export function render(main) {
     if (what === 'settings' || what === 'import') draw();
     else if (what === 'status' || what === 'photos') refresh();
   });
-  const unsubSync = sync.subscribe(draw);
+  const unsubSync = sync.subscribe(paintAccount);
 
   on(main, 'click', '[data-toggle]', async (ev, b) => {
     const path = b.dataset.toggle;
@@ -57,7 +74,7 @@ export function render(main) {
   on(main, 'click', '[data-signin]', signInFlow);
   on(main, 'click', '[data-signout]', signOutFlow);
   on(main, 'click', '[data-sync-now]', () => sync.syncNow());
-  return () => { unsub(); unsubSync(); clearTimeout(estTimer); };
+  return () => { unsub(); unsubSync(); clearTimeout(estTimer); clearTimeout(savingTimer); };
 }
 
 const get = (o, p) => p.split('.').reduce((a, k) => a?.[k], o);
@@ -104,7 +121,7 @@ function view() {
       <div class="seg">${[['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button data-set="theme|${v}" class="${(s.theme || 'auto') === v ? 'on' : ''}">${l}</button>`).join('')}</div>
     </section>
 
-    ${accountCard()}
+    <div data-account>${accountCard()}</div>
 
     <section class="card">
       <div class="card-title"><h2>Backup</h2><span class="hint" data-save-hint>${saveHint()}</span></div>
