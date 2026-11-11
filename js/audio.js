@@ -32,16 +32,25 @@ function pickVoice() {
 }
 try { synth()?.addEventListener?.('voiceschanged', pickVoice); } catch { /* ignore */ }
 
+// iOS mutes web audio in Silent Mode unless the page asks for the 'playback'
+// audio session (Safari 16.4+), the one music and timer apps use. Held only while
+// the app has something to play; 'auto' hands the phone's audio back.
+function audioSession(type) {
+  try { if (navigator.audioSession && navigator.audioSession.type !== type) navigator.audioSession.type = type; } catch { /* ignore */ }
+}
+
 // iOS parks the context as 'suspended' or 'interrupted' (speech, calls, other
 // apps); resume() brings it back.
 function wake() {
   if (!ctx) return;
+  audioSession('playback');
   if (ctx.state !== 'running') { try { ctx.resume().catch(() => {}); } catch { /* ignore */ } }
 }
 
 // Must be called from a user gesture (iOS unlocks audio and speech only there).
 export function unlock({ prime = true } = {}) {
   clearTimeout(releaseTimer);
+  audioSession('playback');
   try {
     if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
     wake();
@@ -113,6 +122,7 @@ function playCue(kind) {
 export function cue(kind) {
   if (!ctx || !soundEnabled || document.hidden) return;
   clearTimeout(releaseTimer);
+  audioSession('playback');
   if (ctx.state === 'running') return playCue(kind);
   // Not running (iOS interrupts it while speech plays): resume, then play.
   try { ctx.resume().then(() => playCue(kind)).catch(() => {}); } catch { /* ignore */ }
@@ -280,6 +290,7 @@ export function release(delay = 1500) {
     if (delay > 0 && ((s && (s.speaking || s.pending)) || sayTimer || clipSrc)) { releaseTimer = setTimeout(go, 500); return; }
     hush();
     try { if (ctx && ctx.state === 'running') ctx.suspend().catch(() => {}); } catch { /* ignore */ }
+    audioSession('auto');
   };
   if (delay > 0) releaseTimer = setTimeout(go, delay); else go();
 }
