@@ -170,13 +170,13 @@ function stopClip() {
 
 // Play a phrase's clip now, or after the one playing when `interrupt` is false.
 // Resolves false when there is no usable clip, so the caller can fall back.
-async function playClip(text, interrupt, gen = sayGen) {
+async function playClip(text, interrupt, gen = sayGen, gap = 0) {
   const c = await loadClip(text);
   if (gen !== sayGen) return true;   // interrupted while loading
   if (!c || !ctx || !voiceEnabled || document.hidden) return !!c && (!voiceEnabled || document.hidden);
   wake();
   if (interrupt) stopClip();
-  const at = Math.max(ctx.currentTime, interrupt ? 0 : clipEndAt);
+  const at = Math.max(ctx.currentTime, interrupt ? 0 : clipEndAt + gap);   // `gap`: a breath after the clip before
   const src = ctx.createBufferSource();
   src.buffer = c.buffer;
   const g = ctx.createGain();
@@ -212,7 +212,7 @@ export function say(text, opts = {}) {
     // to load, and dropped if something interrupts before their turn.
     const gen = sayGen;
     clipQueue = (interrupt ? Promise.resolve() : clipQueue)
-      .then(() => (gen === sayGen ? playClip(text, interrupt, gen) : true))
+      .then(() => (gen === sayGen ? playClip(text, interrupt, gen, opts.gap || 0) : true))
       .then((ok) => { if (!ok) speak(text, opts); });
     return;
   }
@@ -223,9 +223,11 @@ export function say(text, opts = {}) {
 }
 // Several phrases in a row, after whatever is playing. Recorded clips when every
 // part has one; otherwise one synthesized sentence, so voices never alternate.
-export function sayAll(parts) {
-  if (parts.every(hasClip)) for (const p of parts) say(p, { interrupt: false });
-  else say(parts.join(', '), { interrupt: false });
+// A pause before the first part sets it off from the line before; a short one
+// between parts keeps them from running together.
+export function sayAll(parts, { gap = 0.6, between = 0.15 } = {}) {
+  if (parts.every(hasClip)) parts.forEach((p, i) => say(p, { interrupt: false, gap: i ? between : gap }));
+  else say(parts.join(', '), { interrupt: false, gap });
 }
 // Only touches the synthesizer when a phrase of ours went to it: on iOS a stray
 // cancel() can interrupt the audio session, and with it the tones and clips.
@@ -236,7 +238,7 @@ function hushSpeech() {
   synthUsed = false;
   try { const s = synth(); if (s && (s.speaking || s.pending)) s.cancel(); } catch { /* ignore */ }
 }
-function speak(text, { interrupt = true, rate = 1.05 } = {}) {
+function speak(text, { interrupt = true, rate = 1.05, gap = 0 } = {}) {
   const s = synth();
   if (!voiceEnabled || !s || !text || document.hidden) return;
   try {
@@ -253,7 +255,7 @@ function speak(text, { interrupt = true, rate = 1.05 } = {}) {
     // Speaking right after cancel() is silently dropped on iOS, and speech that
     // starts on top of a tone cuts the tone off: wait for both to clear.
     // A queued phrase also waits for the recorded clip before it.
-    const clipLeft = !interrupt && ctx && clipEndAt > ctx.currentTime ? (clipEndAt - ctx.currentTime) * 1000 + 150 : 0;
+    const clipLeft = !interrupt && ctx && clipEndAt > ctx.currentTime ? (clipEndAt - ctx.currentTime + gap) * 1000 + 150 : 0;
     const wait = Math.max(interrupt && busy ? 80 : 0, toneUntil - performance.now() + 30, clipLeft);
     if (wait > 0) sayTimer = setTimeout(() => { sayTimer = null; s.speak(u); wake(); }, wait);
     else { s.speak(u); wake(); }
