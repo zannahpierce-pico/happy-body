@@ -1,6 +1,6 @@
 // Service worker: precache everything on install, serve cache-first, and tell the
 // page when a new version is waiting. Bump VERSION whenever any file changes.
-const VERSION = 'hb-v2.1.25';
+const VERSION = 'hb-v2.1.26';
 const ASSETS = [
   './',
   './index.html',
@@ -94,7 +94,13 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(VERSION).then((c) => c.addAll(ASSETS)));
+  // Fetch every file fresh, past the browser's cache and the host's CDN (the
+  // version query), so a new cache can never hold a mix of old and new files.
+  event.waitUntil(caches.open(VERSION).then((c) => Promise.all(ASSETS.map(async (u) => {
+    const res = await fetch(`${u}?v=${VERSION}`, { cache: 'reload' });
+    if (!res.ok) throw new Error(`precache ${u}: HTTP ${res.status}`);
+    await c.put(u, res);
+  }))));
 });
 
 self.addEventListener('activate', (event) => {

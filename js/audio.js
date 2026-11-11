@@ -227,8 +227,13 @@ export function sayAll(parts) {
   if (parts.every(hasClip)) for (const p of parts) say(p, { interrupt: false });
   else say(parts.join(', '), { interrupt: false });
 }
+// Only touches the synthesizer when a phrase of ours went to it: on iOS a stray
+// cancel() can interrupt the audio session, and with it the tones and clips.
+let synthUsed = false;
 function hushSpeech() {
   clearTimeout(sayTimer); sayTimer = null;
+  if (!synthUsed) return;
+  synthUsed = false;
   try { const s = synth(); if (s && (s.speaking || s.pending)) s.cancel(); } catch { /* ignore */ }
 }
 function speak(text, { interrupt = true, rate = 1.05 } = {}) {
@@ -240,7 +245,7 @@ function speak(text, { interrupt = true, rate = 1.05 } = {}) {
     u.rate = rate; u.pitch = 1; u.volume = 1;
     if (voice) u.voice = voice; else u.lang = navigator.language || 'en-US';
     keep(u);
-    speechPrimed = true;
+    speechPrimed = true; synthUsed = true;
     clearTimeout(sayTimer); sayTimer = null;
     const busy = s.speaking || s.pending;
     if (interrupt && busy) s.cancel();
